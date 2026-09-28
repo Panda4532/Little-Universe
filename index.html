@@ -617,8 +617,7 @@ async function createGift(){
     nav('editor',{giftId:g.id,editorStep:0});
   }catch(e){
     console.error(e);
-    alert('Could not create gift. Please try again.');
-  }
+  alert('CREATE GIFT ERROR: ' + (e.message || e.details || e.hint || JSON.stringify(e)));  }
 }function duplicateGift(id){ const g=JSON.parse(JSON.stringify(getGift(id))); g.id=uid(); g.name=g.name+' (copy)'; g.published=false; g.views=0; g.createdAt=Date.now(); g.updatedAt=Date.now(); saveGift(g); render(); }
 let pendingDelete=null;
 function deleteGift(id){ pendingDelete=id; showModal(`
