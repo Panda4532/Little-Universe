@@ -237,36 +237,216 @@ const OCCASIONS={
 const REL = ['Best Friend','Partner','Sibling','Parent','Crush','Someone Special','Other'];
 const FEEL = ['Emotional','Funny','Romantic','Deep','Nostalgic','Playful'];
 
-/* ===================== LOCAL "BACKEND" (localStorage) ===================== */
-/* NOTE: This demo uses browser localStorage to simulate accounts/database/sessions.
-   It is NOT secure and does not sync across devices — a real deployment needs
-   a hosted backend (e.g. Supabase auth + Postgres + Storage) via Claude Code. */
-const DB = {
-  read(){ try{return JSON.parse(localStorage.getItem('lu_db'))||{users:[],gifts:[],session:null}}catch(e){return {users:[],gifts:[],session:null}} },
-  write(d){ localStorage.setItem('lu_db', JSON.stringify(d)); }
-};
-function uid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36)}
-async function sha(str){ // demo-only hashing so we never store plaintext
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-function emptyGift(){
-  return {id:uid(),ownerId:null,name:'',dob:'',unknownYear:false,occasion:'birthday',theme:'birthday',
-    messages:{main:'',love:'',story:'',dreams:''},
-    little:{nickname:'',joke:'',memory:'',habit:'',phrase:'',owe:''},
-    photos:[], music:'', musicFile:'', bgIntensity:'balanced', published:false, views:0,
-    createdAt:Date.now(), updatedAt:Date.now()};
+/* ===================== SUPABASE BACKEND ===================== */
+
+let currentSupabaseUser = null;
+let giftCache = [];
+
+function uid(){
+  return crypto.randomUUID();
 }
 
+function rowToGift(r){
+  return {
+    id: r.id,
+    ownerId: r.owner_id,
+    name: r.name || '',
+    dob: r.dob || '',
+    unknownYear: !!r.unknown_year,
+    occasion: r.occasion || 'birthday',
+    theme: r.theme || 'birthday',
+
+    messages: r.messages || {
+      main:'',
+      love:'',
+      story:'',
+      dreams:''
+    },
+
+    little: r.little || {
+      nickname:'',
+      joke:'',
+      memory:'',
+      habit:'',
+      phrase:'',
+      owe:''
+    },
+
+    photos: r.photos || [],
+    music: r.music || '',
+    musicFile: r.music_file || '',
+    bgIntensity: r.bg_intensity || 'balanced',
+
+    published: !!r.published,
+    views: r.views || 0,
+
+    createdAt: r.created_at
+      ? new Date(r.created_at).getTime()
+      : Date.now(),
+
+    updatedAt: r.updated_at
+      ? new Date(r.updated_at).getTime()
+      : Date.now()
+  };
+}
+
+function giftToRow(g){
+  return {
+    id: g.id,
+    owner_id: g.ownerId,
+
+    name: g.name || '',
+    dob: g.dob || '',
+    unknown_year: !!g.unknownYear,
+
+    occasion: g.occasion || 'birthday',
+    theme: g.theme || 'birthday',
+
+    messages: g.messages || {},
+    little: g.little || {},
+
+    photos: g.photos || [],
+
+    music: g.music || '',
+    music_file: g.musicFile || '',
+
+    bg_intensity: g.bgIntensity || 'balanced',
+
+    published: !!g.published,
+    views: g.views || 0
+  };
+}
+
+async function loadGifts(){
+
+  if(!currentSupabaseUser){
+    giftCache = [];
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from('gifts')
+    .select('*')
+    .eq('owner_id', currentSupabaseUser.id)
+    .order('updated_at', { ascending:false });
+
+  if(error){
+    console.error('LOAD GIFTS ERROR:', error);
+    throw error;
+  }
+
+  giftCache = (data || []).map(rowToGift);
+}
+
+function currentUser(){
+
+  if(!currentSupabaseUser) return null;
+
+  return {
+    id: currentSupabaseUser.id,
+    email: currentSupabaseUser.email || '',
+    name:
+      currentSupabaseUser.user_metadata?.name ||
+      currentSupabaseUser.email?.split('@')[0] ||
+      'User'
+  };
+}
+
+function myGifts(){
+  return giftCache;
+}
+
+function getGift(id){
+  return giftCache.find(g => g.id === id) || null;
+}
+
+async function saveGift(g){
+
+  if(!currentSupabaseUser){
+    throw new Error('You must be logged in.');
+  }
+
+  g.updatedAt = Date.now();
+
+  const row = giftToRow(g);
+
+  const { data, error } = await supabaseClient
+    .from('gifts')
+    .upsert(row, { onConflict:'id' })
+    .select()
+    .single();
+
+  if(error){
+    console.error('SAVE GIFT ERROR:', error);
+    throw error;
+  }
+
+  const saved = rowToGift(data);
+
+  const index = giftCache.findIndex(x => x.id === saved.id);
+
+  if(index >= 0){
+    giftCache[index] = saved;
+  }else{
+    giftCache.unshift(saved);
+  }
+
+  return saved;
+}
+
+function emptyGift(){
+
+  return {
+    id: uid(),
+
+    ownerId: currentSupabaseUser?.id || null,
+
+    name:'',
+    dob:'',
+    unknownYear:false,
+
+    occasion:'birthday',
+    theme:'birthday',
+
+    messages:{
+      main:'',
+      love:'',
+      story:'',
+      dreams:''
+    },
+
+    little:{
+      nickname:'',
+      joke:'',
+      memory:'',
+      habit:'',
+      phrase:'',
+      owe:''
+    },
+
+    photos:[],
+    music:'',
+    musicFile:'',
+
+    bgIntensity:'balanced',
+
+    published:false,
+    views:0,
+
+    createdAt:Date.now(),
+    updatedAt:Date.now()
+  };
+}
+
+function requireAuth(){
+
+  if(!currentUser()){
+    state.view = 'login';
+  }
+}
 /* ===================== STATE / ROUTER ===================== */
 let state = { view:'landing', giftId:null, menuOpen:false, editorStep:0 };
 const STEPS = ['Who Is This For','Shared Memories','Photos','Soundtrack','Customize','Preview','Publish'];
-
-function currentUser(){ const d=DB.read(); return d.users.find(u=>u.id===d.session) || null; }
-function myGifts(){ const d=DB.read(); const u=currentUser(); return u? d.gifts.filter(g=>g.ownerId===u.id) : []; }
-function getGift(id){ return DB.read().gifts.find(g=>g.id===id); }
-function saveGift(g){ const d=DB.read(); const i=d.gifts.findIndex(x=>x.id===g.id); g.updatedAt=Date.now(); if(i>-1) d.gifts[i]=g; else d.gifts.push(g); DB.write(d); }
-function requireAuth(){ if(!currentUser()){ state.view='login'; } }
 
 function nav(view, extra){ state = {...state, view, ...extra}; render(); window.scrollTo(0,0); }
 
@@ -275,11 +455,16 @@ let saveTimer=null, saveStatus='Saved';
 function queueSave(gift){
   saveStatus='Saving…'; updateSaveBadge();
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>{
-    try{ saveGift(gift); saveStatus='Saved just now'; }
-    catch(e){ saveStatus='Offline — changes saved locally'; localStorage.setItem('lu_backup_'+gift.id, JSON.stringify(gift)); }
-    updateSaveBadge();
-  }, 500);
+  saveTimer = setTimeout(async ()=>{
+  try{
+    await saveGift(gift);
+    saveStatus='Saved just now';
+  }catch(e){
+    console.error(e);
+    saveStatus='Save failed';
+  }
+  updateSaveBadge();
+}, 500);
 }
 function updateSaveBadge(){ const el=document.getElementById('saveBadge'); if(el) el.textContent = saveStatus; }
 
@@ -420,8 +605,21 @@ function giftCard(g){
     </div>
   </div>`;
 }
-function createGift(){ const u=currentUser(); const g=emptyGift(); g.ownerId=u.id; saveGift(g); nav('editor',{giftId:g.id,editorStep:0}); }
-function duplicateGift(id){ const g=JSON.parse(JSON.stringify(getGift(id))); g.id=uid(); g.name=g.name+' (copy)'; g.published=false; g.views=0; g.createdAt=Date.now(); g.updatedAt=Date.now(); saveGift(g); render(); }
+async function createGift(){
+  const u = currentUser();
+  if(!u) return nav('login');
+
+  const g = emptyGift();
+  g.ownerId = u.id;
+
+  try{
+    await saveGift(g);
+    nav('editor',{giftId:g.id,editorStep:0});
+  }catch(e){
+    console.error(e);
+    alert('Could not create gift. Please try again.');
+  }
+}function duplicateGift(id){ const g=JSON.parse(JSON.stringify(getGift(id))); g.id=uid(); g.name=g.name+' (copy)'; g.published=false; g.views=0; g.createdAt=Date.now(); g.updatedAt=Date.now(); saveGift(g); render(); }
 let pendingDelete=null;
 function deleteGift(id){ pendingDelete=id; showModal(`
   <h3>Delete this memory?</h3><p class="muted">This cannot be undone.</p>
@@ -429,8 +627,30 @@ function deleteGift(id){ pendingDelete=id; showModal(`
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-primary" style="background:#c0304f" onclick="confirmDelete()">Delete Forever</button>
   </div>`); }
-function confirmDelete(){ const d=DB.read(); d.gifts=d.gifts.filter(g=>g.id!==pendingDelete); DB.write(d); closeModal(); render(); }
-function shareGift(id){
+async function confirmDelete(){
+  const id = pendingDelete;
+  const g = getGift(id);
+
+  if(!g) return;
+
+  const { error } = await supabaseClient
+    .from('gifts')
+    .delete()
+    .eq('id', id)
+    .eq('owner_id', currentSupabaseUser.id);
+
+  if(error){
+    console.error(error);
+    alert('Could not delete gift.');
+    return;
+  }
+
+  giftCache = giftCache.filter(x => x.id !== id);
+  pendingDelete = null;
+  closeModal();
+  render();
+}
+  function shareGift(id){
   const g=getGift(id);
   const link = location.origin+location.pathname+'#gift='+id;
   showModal(`
@@ -865,22 +1085,85 @@ function burstParticles(root, color, big){
 
 /* ---------- AUTH ACTIONS ---------- */
 async function doLogin(email,pw){
-  const d=DB.read(); const hash=await sha(pw);
-  const u=d.users.find(x=>x.email===email.toLowerCase());
-  if(!u || u.passwordHash!==hash) return 'Incorrect email or password.';
-  d.session=u.id; DB.write(d); nav('dashboard'); return null;
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password: pw
+  });
+
+  if(error){
+    console.error('LOGIN ERROR:', error);
+    return error.message || 'Incorrect email or password.';
+  }
+
+  currentSupabaseUser = data.user;
+
+  try{
+    await loadGifts();
+  }catch(e){
+    console.error(e);
+    return 'Logged in, but gifts could not be loaded.';
+  }
+
+  nav('dashboard');
+  return null;
 }
 async function doSignup(name,email,pw,pw2){
-  if(pw!==pw2) return "Passwords don't match.";
-  if(pw.length<6) return 'Password must be at least 6 characters.';
-  const d=DB.read();
-  if(d.users.find(x=>x.email===email.toLowerCase())) return 'An account with this email already exists.';
-  const hash=await sha(pw);
-  const u={id:uid(),name,email:email.toLowerCase(),passwordHash:hash,createdAt:Date.now()};
-  d.users.push(u); d.session=u.id; DB.write(d); nav('dashboard'); return null;
+
+  if(pw !== pw2){
+    return "Passwords don't match.";
+  }
+
+  if(pw.length < 6){
+    return 'Password must be at least 6 characters.';
+  }
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email: email.trim().toLowerCase(),
+    password: pw,
+    options:{
+      data:{
+        name: name.trim()
+      }
+    }
+  });
+
+  if(error){
+    console.error('SIGNUP ERROR:', error);
+    return error.message || 'Could not create account.';
+  }
+
+  currentSupabaseUser = data.user;
+
+  if(!currentSupabaseUser){
+    return 'Account created. Please check your email to confirm your account.';
+  }
+
+  try{
+    await loadGifts();
+  }catch(e){
+    console.error(e);
+  }
+
+  nav('dashboard');
+  return null;
 }
-function logout(){ const d=DB.read(); d.session=null; DB.write(d); state.menuOpen=false; nav('landing'); }
-function toggleMenu(){ state.menuOpen=!state.menuOpen; render(); }
+async function logout(){
+
+  const { error } = await supabaseClient.auth.signOut();
+
+  if(error){
+    console.error('LOGOUT ERROR:', error);
+    alert('Could not log out. Please try again.');
+    return;
+  }
+
+  currentSupabaseUser = null;
+  giftCache = [];
+  state.menuOpen = false;
+
+  nav('landing');
+}
+  function toggleMenu(){ state.menuOpen=!state.menuOpen; render(); }
 
 /* ---------- EVENT WIRING ---------- */
 function wireEvents(){
@@ -914,16 +1197,63 @@ function wireEvents(){
 
 /* ---------- INIT ---------- */
 function checkPublicLink(){
-  const m = location.hash.match(/^#gift=([a-z0-9]+)/i);
+ async function checkPublicLink(){
+  const m = location.hash.match(/^#gift=([a-z0-9-]+)$/i);
   if(!m) return false;
-  const g = getGift(m[1]);
+
+  const giftId = m[1];
+
   document.getElementById('app').innerHTML='';
-  if(g && g.published){
-    const el=document.createElement('div'); el.id='recipient'; document.body.appendChild(el);
-    runRecipientExperience(g, el, {publicMode:true});
-  } else {
-    document.body.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:#0B0B10;color:#F2EFEF;font-family:'Inter',sans-serif"><div><h2 style="font-family:'Cormorant Garamond',serif;font-size:28px">This gift isn't available.</h2><p style="color:#9b96a3">It may still be a draft, or the link may be incorrect.</p></div></div>`;
+
+  const { data, error } = await supabaseClient
+    .from('gifts')
+    .select('*')
+    .eq('id', giftId)
+    .eq('published', true)
+    .maybeSingle();
+
+  if(error){
+    console.error('PUBLIC GIFT ERROR:', error);
+    document.body.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;
+      justify-content:center;text-align:center;padding:30px;
+      background:#0B0B10;color:#F2EFEF;font-family:Inter,sans-serif">
+        <div>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:28px">
+            Something went wrong.
+          </h2>
+          <p style="color:#9b96a3">
+            Please try opening the link again.
+          </p>
+        </div>
+      </div>`;
+    return true;
   }
+
+  if(data){
+    const g = rowToGift(data);
+
+    const el = document.createElement('div');
+    el.id='recipient';
+    document.body.appendChild(el);
+
+    runRecipientExperience(g, el, {publicMode:true});
+  }else{
+    document.body.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;
+      justify-content:center;text-align:center;padding:30px;
+      background:#0B0B10;color:#F2EFEF;font-family:Inter,sans-serif">
+        <div>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:28px">
+            This gift isn't available.
+          </h2>
+          <p style="color:#9b96a3">
+            The gift may not have been published or the link is incorrect.
+          </p>
+        </div>
+      </div>`;
+  }
+
   return true;
 }
 window.addEventListener('beforeunload', (e)=>{ if(saveStatus==='Saving…'){ e.preventDefault(); e.returnValue=''; } });
@@ -968,7 +1298,45 @@ function playPandaIntro(lines,onDone){
     finish();
   })();
 }
-if(!checkPublicLink()){ render(); }
-</script>
+async function initApp(){
+
+  const publicLink = location.hash.startsWith('#gift=');
+
+  if(publicLink){
+    await checkPublicLink();
+    return;
+  }
+
+  const { data } = await supabaseClient.auth.getSession();
+
+  currentSupabaseUser = data.session?.user || null;
+
+  if(currentSupabaseUser){
+    try{
+      await loadGifts();
+    }catch(e){
+      console.error('INITIAL LOAD ERROR:', e);
+    }
+  }
+
+  render();
+}
+
+supabaseClient.auth.onAuthStateChange(async (_event, session)=>{
+  currentSupabaseUser = session?.user || null;
+
+  if(currentSupabaseUser){
+    try{
+      await loadGifts();
+    }catch(e){
+      console.error('AUTH LOAD ERROR:', e);
+    }
+  }else{
+    giftCache = [];
+  }
+});
+
+initApp();
+  </script>
 </body>
 </html>
