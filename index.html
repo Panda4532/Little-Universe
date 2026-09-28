@@ -1196,8 +1196,7 @@ function wireEvents(){
 }
 
 /* ---------- INIT ---------- */
-function checkPublicLink(){
- async function checkPublicLink(){
+async function checkPublicLink(){
   const m = location.hash.match(/^#gift=([a-z0-9-]+)$/i);
   if(!m) return false;
 
