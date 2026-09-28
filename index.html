@@ -207,10 +207,7 @@ textarea{min-height:100px;resize:vertical}
 <div id="app"></div>
 
 <script>
-  const SUPABASE_URL = 'https://ybpvfftpfzrhcnmatjim.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlicHZmZnRwZnpyaGNubWF0amltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTgxNjYsImV4cCI6MjEwNjE5NDE2Nn0.CJowEW_xCz1HBE60aKKJrZeYlG-BK_KlqNxzcdiQEWI';
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  /* ===================== THEME DEFINITIONS ===================== */
+/* ===================== THEME DEFINITIONS ===================== */
 const THEMES = {
   birthday:{label:'Birthday',c1:'#F4568C',c2:'#FFB86C',bg:'#2a0f1e',opener:'HAPPY BIRTHDAY'},
   loveletter:{label:'Love Letter',c1:'#F4568C',c2:'#8b5cf6',bg:'#2a1330',opener:'A LITTLE LOVE LETTER'},
@@ -236,9 +233,29 @@ const FEEL = ['Emotional','Funny','Romantic','Deep','Nostalgic','Playful'];
 /* Paste your project's values below — Supabase Dashboard → Project Settings → API.
    The anon/public key is SAFE to expose here: it only ever does what your
    Row Level Security policies (see schema.sql) allow it to do. */
-const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';        // e.g. https://xxxxxxxx.supabase.co
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_PUBLIC_KEY';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_URL = 'https://ybpvfftpfzrhcnmatjim.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlicHZmZnRwZnpyaGNubWF0amltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTgxNjYsImV4cCI6MjEwNjE5NDE2Nn0.CJowEW_xCz1HBE60aKKJrZeYlG-BK_KlqNxzcdiQEWI';
+let sb;
+function showBootError(err){
+  if(document.getElementById('bootErrorBanner')) return;
+  const msg = (err && err.message) ? err.message : String(err);
+  const el = document.createElement('div');
+  el.id='bootErrorBanner';
+  el.style.cssText='position:fixed;inset:0;z-index:999;background:#0B0B10;color:#F2EFEF;display:flex;align-items:center;justify-content:center;padding:30px;font-family:Inter,sans-serif;text-align:center';
+  el.innerHTML = `<div style="max-width:520px">
+    <h2 style="font-family:'Cormorant Garamond',serif;font-size:26px;margin-bottom:10px">The site didn't load correctly.</h2>
+    <p style="color:#9b96a3;line-height:1.6;margin-bottom:14px">${/supabase|YOUR_SUPABASE/i.test(msg) ? "This usually means the SUPABASE_URL / SUPABASE_ANON_KEY placeholders near the top of index.html haven't been replaced with your real project values yet, or the Supabase library failed to load." : "Screenshot this box and send it back — the exact error is below."}</p>
+    <code style="display:block;background:#15151D;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px;font-size:12px;color:#ff8fa3;text-align:left;white-space:pre-wrap;word-break:break-word">${msg}</code>
+  </div>`;
+  document.body.appendChild(el);
+}
+try{
+  if(!window.supabase) throw new Error('Supabase library did not load (window.supabase is undefined) — check your internet connection or an ad-blocker/extension blocking cdn.jsdelivr.net.');
+  if(SUPABASE_URL.indexOf('YOUR_SUPABASE')>-1 || SUPABASE_ANON_KEY.indexOf('YOUR_SUPABASE')>-1){
+    throw new Error('SUPABASE_URL / SUPABASE_ANON_KEY are still placeholder text. Edit index.html and paste your real Supabase Project URL and anon public key near the top of the <script> tag.');
+  }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}catch(e){ showBootError(e); }
 const MEDIA_BUCKET = 'gift-media';
 
 function uid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36)}
@@ -1089,13 +1106,17 @@ function playPandaIntro(lines,onDone){
   })();
 }
 async function boot(){
-  const isPublic = await checkPublicLink();
-  if(isPublic) return;
-  const { data } = await sb.auth.getSession();
-  session = data.session;
-  sb.auth.onAuthStateChange((_event, newSession)=>{ session = newSession; render(); });
-  render();
+  if(!sb) return; // configuration error already shown by showBootError()
+  try{
+    const isPublic = await checkPublicLink();
+    if(isPublic) return;
+    const { data } = await sb.auth.getSession();
+    session = data.session;
+    sb.auth.onAuthStateChange((_event, newSession)=>{ session = newSession; render(); });
+    render();
+  }catch(e){ showBootError(e); }
 }
+window.addEventListener('unhandledrejection', e => showBootError(e.reason));
 boot();
 </script>
 </body>
