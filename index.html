@@ -205,7 +205,16 @@ textarea{min-height:100px;resize:vertical}
 <div class="glow"></div>
 <div id="app"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+const SUPABASE_URL = "https://ttysanmyjxqmrowzhdjq.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_3dSLSNGdcefpWTYEY9uBDQ_NRy_QF1S";
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 /* ===================== THEME DEFINITIONS ===================== */
 const THEMES = {
   birthday:{label:'Birthday',c1:'#F4568C',c2:'#FFB86C',bg:'#2a0f1e',opener:'HAPPY BIRTHDAY'},
