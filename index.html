@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Little Universe — Birthday Gifts</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#0B0B10; --surf1:#15151D; --surf2:#20202A;
+  --accent:#F4568C; --accent2:#c65fb0; --wine:#3a1523; --purple:#2a1e3d;
+  --text:#F2EFEF; --muted:#9b96a3; --border:rgba(255,255,255,0.08);
+  --serif:'Cormorant Garamond',serif; --sans:'Inter',sans-serif;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  box-sizing:border-box;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+a{color:inherit}
+button{font-family:inherit;cursor:pointer;border:none}
+input,textarea,select{font-family:inherit;background:var(--surf2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:12px 14px;width:100%;outline:none;transition:box-shadow .2s,border-color .2s}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(244,86,140,.18)}
+::placeholder{color:#66606f}
+.btn{padding:12px 22px;border-radius:999px;font-weight:600;font-size:14px;transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s ease,filter .2s ease}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
+.btn:active{transform:translateY(0) scale(.98);transition:transform .1s}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.btn-ghost{background:var(--surf2);color:var(--text);border:1px solid var(--border)}
+.btn-text{background:transparent;color:var(--muted);padding:6px 8px}
+.serif{font-family:var(--serif)}
+.serif-i{font-family:var(--serif);font-style:italic;color:var(--accent)}
+.muted{color:var(--muted)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.card{background:var(--surf1);border:1px solid var(--border);border-radius:18px}
+.hidden{display:none !important}
+.glow{position:fixed;inset:0;pointer-events:none;background:
+  radial-gradient(600px 400px at 15% 10%, rgba(244,86,140,.10), transparent 60%),
+  radial-gradient(500px 500px at 85% 30%, rgba(120,60,200,.10), transparent 60%);
+  z-index:0}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#2c2a34;border-radius:8px}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:20;background:rgba(11,11,16,.7);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.navrow{display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{font-family:var(--serif);font-size:20px;font-weight:600;letter-spacing:.3px}
+.navlinks{display:flex;gap:10px;align-items:center}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.menu{position:absolute;right:24px;top:60px;background:var(--surf1);border:1px solid var(--border);border-radius:14px;min-width:180px;padding:8px;box-shadow:0 20px 40px rgba(0,0,0,.4)}
+.menu button{display:block;width:100%;text-align:left;background:none;color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px}
+.menu button:hover{background:var(--surf2)}
+
+/* LANDING */
+.hero{position:relative;padding:120px 0 80px;text-align:center;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:-120px;pointer-events:none;background:
+  radial-gradient(600px 400px at 30% 20%, rgba(244,86,140,.20), transparent 60%),
+  radial-gradient(500px 500px at 72% 65%, rgba(120,60,200,.16), transparent 60%);
+  animation:heroDrift 14s ease-in-out infinite alternate}
+@keyframes heroDrift{from{transform:translate(0,0) scale(1)}to{transform:translate(26px,18px) scale(1.06)}}
+.hero h1{font-family:var(--serif);font-size:clamp(36px,6vw,64px);line-height:1.1;margin:0 0 18px;animation:fadeSlideIn .8s cubic-bezier(.2,.8,.2,1)}
+.hero p{color:var(--muted);font-size:18px;max-width:560px;margin:0 auto 32px;animation:fadeSlideIn 1s cubic-bezier(.2,.8,.2,1)}
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.editor-left{animation:fadeSlideIn .45s cubic-bezier(.2,.8,.2,1)}
+.giftgrid .giftcard{animation:fadeSlideIn .5s cubic-bezier(.2,.8,.2,1) backwards}
+.giftgrid .giftcard:nth-child(2){animation-delay:.05s}
+.giftgrid .giftcard:nth-child(3){animation-delay:.1s}
+.giftgrid .giftcard:nth-child(4){animation-delay:.15s}
+.hero .actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.section{padding:70px 0}
+.section h2{font-family:var(--serif);font-size:36px;margin-bottom:8px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:30px}
+.feat{padding:26px;border-radius:16px}
+.feat .em{font-size:26px}
+
+/* AUTH */
+.authwrap{min-height:calc(100vh - 64px);display:flex;align-items:center;justify-content:center;padding:40px 20px}
+.authcard{width:100%;max-width:420px;padding:40px}
+.authcard h1{font-family:var(--serif);font-size:32px;margin:0 0 6px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+.err{color:#ff8fa3;font-size:13px;margin-top:6px}
+
+/* DASHBOARD */
+.dash-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;padding:50px 0 30px}
+.giftgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;padding-bottom:60px}
+.giftcard{overflow:hidden;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s ease}
+.giftcard:hover{transform:translateY(-6px);box-shadow:0 20px 40px rgba(0,0,0,.35)}
+.giftcover{height:150px;background-size:cover;background-position:center;position:relative}
+.giftcover::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55))}
+.badge{position:absolute;top:10px;right:10px;font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.5);z-index:1}
+.giftbody{padding:16px}
+.giftbody h3{font-family:var(--serif);font-size:22px;margin:0 0 2px}
+.giftactions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.giftactions button{padding:7px 12px;font-size:12px;border-radius:999px;background:var(--surf2);color:var(--text);border:1px solid var(--border)}
+.giftactions button:hover{border-color:var(--accent)}
+.empty{text-align:center;padding:90px 20px}
+
+/* EDITOR */
+.editor-shell{display:flex;flex-direction:column;height:100vh}
+.editor-top{display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--surf1)}
+.tab{padding:8px 14px;border-radius:999px;background:var(--surf2);font-size:13px;color:var(--muted)}
+.tab.active{background:var(--text);color:#0B0B10;font-weight:600}
+.progress{flex:1;height:4px;background:var(--surf2);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s}
+.savestatus{font-size:12px;color:var(--muted);white-space:nowrap}
+.editor-body{flex:1;display:flex;overflow:hidden}
+.editor-left{flex:1.2;overflow-y:auto;padding:50px}
+.editor-right{flex:1;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 20%,#17141c,#0B0B10);border-left:1px solid var(--border);position:relative}
+.stepnav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:36px}
+.step{padding:6px 12px;border-radius:999px;font-size:12px;background:var(--surf2);color:var(--muted)}
+.step.active{background:var(--accent);color:#fff}
+.stephead{font-family:var(--serif);font-size:44px;margin:0 0 8px;line-height:1.1}
+.label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px;display:flex;justify-content:space-between}
+.counter{font-size:11px;color:#5b5763}
+textarea{min-height:100px;resize:vertical}
+.editornav{display:flex;justify-content:space-between;margin-top:36px}
+
+/* PHONE */
+.phonewrap{position:relative;transform:scale(.92)}
+.phonectrls{position:absolute;top:-52px;left:50%;transform:translateX(-50%);display:flex;gap:8px}
+.phonectrls button,.phonectrls select{background:var(--surf2);border:1px solid var(--border);color:var(--text);border-radius:999px;padding:6px 12px;font-size:12px}
+.phone{width:280px;height:580px;background:#050507;border-radius:42px;padding:12px;box-shadow:0 40px 80px rgba(0,0,0,.6),0 0 0 2px #000;position:relative}
+.phone-screen{width:100%;height:100%;border-radius:32px;overflow:hidden;position:relative;background:#0B0B10}
+.phone-label{position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.1em;color:var(--muted)}
+
+/* PHOTO GRID */
+.dropzone{border:1.5px dashed var(--border);border-radius:16px;padding:40px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
+.dropzone:hover,.dropzone.drag{border-color:var(--accent);background:rgba(244,86,140,.05)}
+.photogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;margin-top:16px}
+.pthumb{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background-size:cover;background-position:center}
+.pthumb button{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;width:22px;height:22px;border-radius:50%;font-size:12px;line-height:1}
+.theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-top:16px}
+.themecard{padding:16px;border-radius:14px;border:1.5px solid var(--border);cursor:pointer;text-align:center}
+.themecard.sel{border-color:var(--accent);box-shadow:0 0 0 3px rgba(244,86,140,.15)}
+.themecard .sw{height:36px;border-radius:8px;margin-bottom:10px}
+.aibtn{background:var(--surf2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:999px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.aibtn:hover{border-color:var(--accent)}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;animation:bgIn .2s ease}
+.modal{background:var(--surf1);border:1px solid var(--border);border-radius:20px;max-width:480px;width:100%;padding:30px;max-height:88vh;overflow-y:auto;animation:modalIn .3s cubic-bezier(.2,.8,.2,1)}
+@keyframes bgIn{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal h3{font-family:var(--serif);font-size:26px;margin:0 0 4px}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.chip{padding:8px 14px;border-radius:999px;background:var(--surf2);border:1px solid var(--border);font-size:13px}
+.chip.sel{background:var(--accent);border-color:var(--accent)}
+
+/* RECIPIENT EXPERIENCE */
+#recipient{position:fixed;inset:0;background:#000;z-index:200;overflow:hidden}
+.rlayer{position:absolute;inset:0}
+.rbg{background-size:cover;background-position:center;transition:opacity 1.5s cubic-bezier(.4,0,.2,1)}
+.rbg-blur{filter:blur(40px) brightness(.5) saturate(1.15);transform:scale(1.2)}
+.rvignette{background:radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,.75) 100%)}
+.rgrad{background:linear-gradient(180deg, rgba(0,0,0,.3), rgba(0,0,0,.75) 70%)}
+.rcontent{position:relative;z-index:5;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 24px;opacity:1;transition:opacity .35s ease,transform .4s cubic-bezier(.2,.8,.2,1)}
+.rcontent.rout{opacity:0;transform:translateY(16px) scale(.985)}
+.rcontent h1{font-family:var(--serif);font-size:clamp(28px,7vw,48px);margin:0}
+.rcontent p{font-size:16px;color:#e8e4ea;max-width:400px;line-height:1.6}
+.giftbox{width:130px;height:130px;margin:34px auto;position:relative;cursor:pointer;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.giftbox:hover{transform:scale(1.05)}
+.giftbox::before{content:'';position:absolute;inset:-24px;border-radius:50%;background:radial-gradient(circle, var(--accent) 0%, transparent 70%);opacity:.4;filter:blur(18px);animation:glowPulse 2.6s ease-in-out infinite}
+.giftbox .box{width:100%;height:100%;background:linear-gradient(135deg,#5a1830,#2a0f1e);border-radius:14px;position:relative;box-shadow:0 20px 50px rgba(244,86,140,.3);animation:float 3s ease-in-out infinite}
+.giftbox .ribbon-v,.giftbox .ribbon-h{position:absolute;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.giftbox .ribbon-v{width:22%;height:100%;left:39%}
+.giftbox .ribbon-h{height:22%;width:100%;top:39%}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes glowPulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.55;transform:scale(1.12)}}
+.tapme{margin-top:14px;font-size:12px;letter-spacing:.1em;color:var(--muted);animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+.exitr{position:absolute;top:16px;left:16px;z-index:10;background:rgba(0,0,0,.4);color:#fff;border-radius:999px;padding:6px 14px;font-size:12px;transition:background .2s}
+.exitr:hover{background:rgba(0,0,0,.6)}
+.rfooter{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-size:11px;color:#8a8590;z-index:6}
+.particle{position:absolute;border-radius:50%;background:var(--accent);opacity:.7;pointer-events:none}
+.rphotos-strip{display:flex;gap:10px;overflow-x:auto;padding:10px 0;max-width:100%}
+.rphotos-strip img{height:100px;border-radius:10px;object-fit:cover}
+.card-float{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:16px 20px;margin:8px;min-width:150px;backdrop-filter:blur(6px);transition:transform .3s}
+.card-float:hover{transform:translateY(-3px)}
+.littlegrid{display:flex;flex-wrap:wrap;justify-content:center;max-width:600px}
+.panda-intro{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:radial-gradient(600px 400px at 50% 35%,rgba(244,86,140,.18),transparent 65%),#0B0B10;transition:opacity .9s ease,transform .9s cubic-bezier(.2,.8,.2,1)}
+.panda-intro.out{opacity:0;transform:scale(1.05);pointer-events:none}
+.panda-skip{position:absolute;top:18px;right:18px;background:rgba(255,255,255,.08);color:var(--muted);border-radius:999px;padding:8px 16px;font-size:12px;transition:background .2s,color .2s}
+.panda-skip:hover{background:rgba(255,255,255,.14);color:#fff}
+.panda{width:210px;max-width:60vw;animation:pandaIn 1s cubic-bezier(.2,.8,.2,1) both,pandaBob 3.2s ease-in-out 1s infinite;filter:drop-shadow(0 20px 30px rgba(0,0,0,.5))}
+@keyframes pandaIn{from{opacity:0;transform:translateY(50px) scale(.88)}to{opacity:1;transform:none}}
+@keyframes pandaBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.wave-arm{transform-origin:148px 138px;animation:pandaWave .9s ease-in-out 1s infinite}
+@keyframes pandaWave{0%,100%{transform:rotate(6deg)}50%{transform:rotate(-22deg)}}
+.panda-eye{transform-box:fill-box;transform-origin:center;animation:pandaBlink 4.5s infinite}
+@keyframes pandaBlink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+.bubble{position:relative;margin-top:26px;background:#fff;color:#15151D;border-radius:20px;padding:16px 22px;max-width:340px;min-height:76px;font-size:15px;line-height:1.55;text-align:center;box-shadow:0 18px 40px rgba(0,0,0,.4);opacity:0;transform:translateY(10px);transition:opacity .5s ease,transform .5s cubic-bezier(.2,.8,.2,1)}
+.bubble.show{opacity:1;transform:none}
+.bubble::before{content:'';position:absolute;top:-9px;left:50%;margin-left:-9px;border:9px solid transparent;border-top:0;border-bottom-color:#fff}
+@media(max-width:880px){
+  .editor-body{flex-direction:column;overflow-y:auto}
+  .editor-left{padding:26px}
+  .editor-right{padding:60px 0}
+  .phonewrap{transform:scale(.85)}
+}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div id="app"></div>
+
+<script>
+/* ===================== THEME DEFINITIONS ===================== */
+const THEMES = {
+  birthday:{label:'Birthday',c1:'#F4568C',c2:'#FFB86C',bg:'#2a0f1e',opener:'HAPPY BIRTHDAY'},
+  loveletter:{label:'Love Letter',c1:'#F4568C',c2:'#8b5cf6',bg:'#2a1330',opener:'A LITTLE LOVE LETTER'},
+  bestfriend:{label:'Best Friend',c1:'#FFD166',c2:'#F4568C',bg:'#1e2130',opener:'TO MY PERSON'},
+  soulmate:{label:'Soulmate',c1:'#c65fb0',c2:'#6a5acd',bg:'#241a35',opener:'MY SOULMATE'},
+  friendship:{label:'Friendship',c1:'#6ad1c9',c2:'#F4568C',bg:'#132622',opener:'FOR MY FRIEND'},
+  memories:{label:'Memories',c1:'#d9a441',c2:'#7a4b2a',bg:'#241c14',opener:'OUR MEMORIES'},
+  midnight:{label:'Midnight',c1:'#5b6ee1',c2:'#252a4a',bg:'#0a0c1a',opener:'AT MIDNIGHT'},
+  dreamy:{label:'Dreamy',c1:'#b892e8',c2:'#f6c1e0',bg:'#1e1830',opener:'A DREAM FOR YOU'},
+  minimal:{label:'Minimal',c1:'#e5e5e5',c2:'#8a8a8a',bg:'#101010',opener:'FOR YOU'}
+};
+const OCCASIONS={
+  birthday:{label:'Birthday',phrase:'your birthday',greet:'Happy Birthday',dateLabel:'Birthday Date'},
+  anniversary:{label:'Anniversary',phrase:'your anniversary',greet:'Happy Anniversary',dateLabel:'Anniversary Date'},
+  valentine:{label:"Valentine's Day",phrase:"Valentine's Day",greet:"Happy Valentine's Day",dateLabel:'Date'},
+  graduation:{label:'Graduation',phrase:'your graduation day',greet:'Congratulations',dateLabel:'Graduation Date'},
+  wedding:{label:'Wedding',phrase:'your wedding day',greet:'Congratulations',dateLabel:'Wedding Date'}
+};
+const REL = ['Best Friend','Partner','Sibling','Parent','Crush','Someone Special','Other'];
+const FEEL = ['Emotional','Funny','Romantic','Deep','Nostalgic','Playful'];
+
+/* ===================== SUPABASE (real backend) ===================== */
+/* Paste your project's values below — Supabase Dashboard → Project Settings → API.
+   The anon/public key is SAFE to expose here: it only ever does what your
+   Row Level Security policies (see schema.sql) allow it to do. */
+const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';        // e.g. https://xxxxxxxx.supabase.co
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_PUBLIC_KEY';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const MEDIA_BUCKET = 'gift-media';
+
+function uid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36)}
+function emptyGift(){
+  return {id:null,ownerId:null,name:'',dob:'',unknownYear:false,occasion:'birthday',theme:'birthday',
+    messages:{main:'',love:'',story:'',dreams:''},
+    little:{nickname:'',joke:'',memory:'',habit:'',phrase:'',owe:''},
+    photos:[], music:'', musicFile:'', musicPath:'', bgIntensity:'balanced', published:false, views:0,
+    createdAt:Date.now(), updatedAt:Date.now()};
+}
+function rowToGift(row, photoRows){
+  return {
+    id:row.id, ownerId:row.owner_id, name:row.name||'', dob:row.dob||'', unknownYear:!!row.unknown_year,
+    occasion:row.occasion||'birthday', theme:row.theme||'birthday',
+    messages:Object.assign({main:'',love:'',story:'',dreams:''}, row.messages||{}),
+    little:Object.assign({nickname:'',joke:'',memory:'',habit:'',phrase:'',owe:''}, row.little||{}),
+    photos:(photoRows||[]).slice().sort((a,b)=>a.sort_order-b.sort_order).map(p=>({id:p.id,src:p.url,path:p.path||'',caption:p.caption||''})),
+    music:row.music_url||'', musicFile:row.music_file_url||'', musicPath:row.music_path||'',
+    bgIntensity:row.bg_intensity||'balanced', published:!!row.published, views:row.views||0,
+    createdAt:new Date(row.created_at).getTime(), updatedAt:new Date(row.updated_at).getTime()
+  };
+}
+function giftToRow(g){
+  return {
+    name:g.name, dob:g.dob||null, unknown_year:g.unknownYear, occasion:g.occasion, theme:g.theme,
+    messages:g.messages, little:g.little, music_url:g.music, music_file_url:g.musicFile,
+    music_path:g.musicPath||null, bg_intensity:g.bgIntensity, published:g.published
+  };
+}
+
+/* ===================== STATE / ROUTER ===================== */
+let state = { view:'landing', giftId:null, menuOpen:false, editorStep:0 };
+const STEPS = ['Who Is This For','Shared Memories','Photos','Soundtrack','Customize','Preview','Publish'];
+
+let session = null;      // Supabase auth session — set at boot + onAuthStateChange
+let giftsCache = [];     // this user's gifts, loaded async for the dashboard
+let giftsLoading = false;
+let currentGift = null;  // the gift open in the editor, loaded async by id
+let giftLoading = false;
+
+function currentUser(){
+  if(!session || !session.user) return null;
+  return { id: session.user.id, name: session.user.user_metadata?.name || session.user.email, email: session.user.email };
+}
+function requireAuth(){ if(!currentUser()){ state.view='login'; } }
+
+function nav(view, extra){
+  state = {...state, view, ...extra};
+  if(view==='dashboard') fetchMyGifts();
+  if(view==='editor' && state.giftId) loadGift(state.giftId);
+  render();
+  window.scrollTo(0,0);
+}
+
+async function fetchMyGifts(){
+  const u=currentUser(); if(!u) return;
+  giftsLoading=true; render();
+  const { data, error } = await sb.from('gifts').select('*, gift_photos(*)').eq('owner_id', u.id).order('updated_at', { ascending:false });
+  giftsLoading=false;
+  if(!error && data) giftsCache = data.map(row => rowToGift(row, row.gift_photos));
+  render();
+}
+async function loadGift(id){
+  if(currentGift && currentGift.id===id) return;
+  giftLoading=true; render();
+  const { data, error } = await sb.from('gifts').select('*, gift_photos(*)').eq('id', id).maybeSingle();
+  giftLoading=false;
+  if(!error && data) currentGift = rowToGift(data, data.gift_photos);
+  render();
+}
+
+/* ===================== AUTOSAVE ===================== */
+let saveTimer=null, saveStatus='Saved';
+function queueSave(gift){
+  saveStatus='Saving…'; updateSaveBadge();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    try{
+      if(!navigator.onLine) throw new Error('offline');
+      const { error } = await sb.from('gifts').update(giftToRow(gift)).eq('id', gift.id);
+      if(error) throw error;
+      saveStatus='Saved just now';
+    }catch(e){
+      saveStatus='Offline — will retry';
+      try{ localStorage.setItem('lu_backup_'+gift.id, JSON.stringify(gift)); }catch(_){}
+    }
+    updateSaveBadge();
+  }, 600);
+}
+function updateSaveBadge(){ const el=document.getElementById('saveBadge'); if(el) el.textContent = saveStatus; }
+
+/* ===================== RENDER ===================== */
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = viewFor(state.view);
+  wireEvents();
+}
+
+function navbar(active){
+  const u = currentUser();
+  return `<nav><div class="wrap navrow">
+    <div class="logo" onclick="nav('${u?'dashboard':'landing'}')" style="cursor:pointer">✦ Little Universe</div>
+    <div class="navlinks">
+      ${u ? `
+        <button class="btn btn-ghost" style="padding:8px 16px" onclick="nav('dashboard')">My Gifts</button>
+        <div style="position:relative">
+          <div class="avatar" style="cursor:pointer" onclick="toggleMenu()">${(u.name||'U')[0].toUpperCase()}</div>
+          ${state.menuOpen?`<div class="menu">
+            <button onclick="nav('profile')">Profile</button>
+            <button onclick="nav('dashboard')">My Gifts</button>
+            <button onclick="nav('settings')">Settings</button>
+            <button onclick="logout()">Log Out</button>
+          </div>`:''}
+        </div>` :
+        `<button class="btn btn-ghost" onclick="nav('login')">Log In</button>
+         <button class="btn btn-primary" onclick="nav('signup')">Create a Gift</button>`}
+    </div>
+  </div></nav>`;
+}
+function footer(){
+  return `<div style="text-align:center;padding:30px 0;color:var(--muted);font-size:12px;border-top:1px solid var(--border);margin-top:40px">Made with ❤️ by Tushar Goyal</div>`;
+}
+
+function viewFor(v){
+  if(v==='landing') return landingView();
+  if(v==='login') return authView('login');
+  if(v==='signup') return authView('signup');
+  if(v==='dashboard'){ requireAuth(); if(state.view==='login') return authView('login'); return dashboardView(); }
+  if(v==='editor'){ requireAuth(); if(state.view==='login') return authView('login'); return editorView(); }
+  if(v==='profile'){ requireAuth(); if(state.view==='login') return authView('login'); return simplePage('Your account','Profile settings — name, email and password live here in the full build.'); }
+  if(v==='settings'){ requireAuth(); if(state.view==='login') return authView('login'); return simplePage('Settings','Reduced motion, autoplay, background intensity and notification preferences live here.'); }
+  return landingView();
+}
+function simplePage(title,body){
+  return navbar()+`<div class="wrap" style="padding:80px 0;max-width:600px"><h1 class="serif" style="font-size:36px">${title}</h1><p class="muted">${body}</p><button class="btn btn-ghost" onclick="nav('dashboard')">← Back to dashboard</button></div>`+footer();
+}
+
+/* ---------- LANDING ---------- */
+function landingView(){
+  return navbar()+`
+  <div class="hero"><div class="wrap">
+    <h1>Make them a birthday<br>they'll <span class="serif-i">never forget.</span></h1>
+    <p>Turn your favorite memories, words and photographs into an experience made just for them.</p>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="nav('${currentUser()?'dashboard':'signup'}')">Create a Gift</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">See How It Works</button>
+    </div>
+  </div></div>
+  <div class="section wrap" id="how">
+    <h2>How it works</h2><p class="muted">Three steps, one unforgettable moment.</p>
+    <div class="grid3">
+      <div class="feat card"><div class="em">✍️</div><h3>Write & Upload</h3><p class="muted">Your words, your photos, your story.</p></div>
+      <div class="feat card"><div class="em">🎨</div><h3>Choose a Theme</h3><p class="muted">Cinematic themes shape colors, motion and mood.</p></div>
+      <div class="feat card"><div class="em">🎁</div><h3>Share the Moment</h3><p class="muted">Send a link. Watch it unfold like a movie.</p></div>
+    </div>
+  </div>
+  <div class="section wrap">
+    <h2>Photos become <span class="serif-i">memories</span></h2>
+    <p class="muted">Not a gallery — a cinematic backdrop with crossfades, slow zoom and soft glow, shaped around your theme.</p>
+  </div>
+  <div class="section wrap" style="text-align:center">
+    <h2>Someone special deserves something special.</h2>
+    <button class="btn btn-primary" onclick="nav('${currentUser()?'dashboard':'signup'}')">Create Their Gift</button>
+  </div>
+  ${footer()}`;
+}
+
+/* ---------- AUTH ---------- */
+function authView(mode){
+  const isLogin = mode==='login';
+  return navbar()+`<div class="authwrap"><div class="authcard card">
+    <h1>${isLogin? 'Welcome back.' : 'Create your little universe.'}</h1>
+    <p class="muted" style="margin-bottom:26px">${isLogin? 'Your memories are waiting.' : 'It takes two minutes.'}</p>
+    <form id="authform">
+      ${isLogin?'':`<div class="field"><label>Name</label><input id="af_name" required></div>`}
+      <div class="field"><label>Email</label><input id="af_email" type="email" required></div>
+      <div class="field"><label>Password</label><input id="af_pw" type="password" required minlength="6"></div>
+      ${isLogin?'':`<div class="field"><label>Confirm Password</label><input id="af_pw2" type="password" required minlength="6"></div>
+      <p class="muted" style="font-size:12px;margin-top:-8px">At least 6 characters.</p>`}
+      <div id="af_err" class="err"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" type="submit">${isLogin?'Log In':'Create Account'}</button>
+      <button type="button" class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="loginWithGoogle()">Continue with Google</button>
+    </form>
+    <div style="margin-top:18px;text-align:center;font-size:13px" class="muted">
+      ${isLogin? `<a href="#" onclick="nav('signup');return false">Create an account</a>` : `<a href="#" onclick="nav('login');return false">Already have an account? Log in</a>`}
+    </div>
+  </div></div>`;
+}
+
+/* ---------- DASHBOARD ---------- */
+function dashboardView(){
+  const gifts = giftsCache;
+  return navbar()+`<div class="wrap">
+    <div class="dash-head">
+      <div><h1 class="serif" style="font-size:38px;margin:0">Your little universes</h1><p class="muted">Create something they'll never forget.</p></div>
+      <button class="btn btn-primary" onclick="createGift()">+ Create New Gift</button>
+    </div>
+    ${giftsLoading? `<div class="empty card"><p class="muted">Gathering the memories…</p></div>` :
+      gifts.length===0? `
+      <div class="empty card">
+        <h2 class="serif">You haven't created a gift yet.</h2>
+        <p class="muted">Someone is waiting for something unforgettable.</p>
+        <button class="btn btn-primary" onclick="createGift()">Create Your First Gift</button>
+      </div>` :
+      `<div class="giftgrid">${gifts.map(giftCard).join('')}</div>`
+    }
+  </div>${footer()}`;
+}
+function timeAgo(ts){ const m=Math.floor((Date.now()-ts)/60000); if(m<1)return 'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
+function giftCard(g){
+  const th = THEMES[g.theme];
+  const cover = g.photos[0]?.src || '';
+  return `<div class="giftcard card">
+    <div class="giftcover" style="background-image:${cover?`url(${cover})`:`linear-gradient(135deg,${th.c1},${th.c2})`}">
+      <span class="badge">${g.published?'Published':'Draft'}</span>
+    </div>
+    <div class="giftbody">
+      <h3>${g.name||'Untitled'}</h3>
+      <div class="muted" style="font-size:12px">${th.label} · Edited ${timeAgo(g.updatedAt)}${g.published?` · ${g.views||0} views`:''}</div>
+      <div class="giftactions">
+        <button onclick="nav('editor',{giftId:'${g.id}',editorStep:0})">Edit</button>
+        <button onclick="openRecipient('${g.id}')">Preview</button>
+        <button onclick="shareGift('${g.id}')">Share</button>
+        <button onclick="duplicateGift('${g.id}')">Duplicate</button>
+        <button onclick="deleteGift('${g.id}')" style="color:#ff8fa3">Delete</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function createGift(){
+  const u=currentUser(); if(!u) return;
+  const g=emptyGift();
+  const { data, error } = await sb.from('gifts').insert({...giftToRow(g), owner_id:u.id}).select().single();
+  if(error){ alert('Could not create gift: '+error.message); return; }
+  currentGift = rowToGift(data, []);
+  nav('editor',{giftId:data.id,editorStep:0});
+}
+async function duplicateGift(id){
+  const u=currentUser(); if(!u) return;
+  const original = giftsCache.find(g=>g.id===id); if(!original) return;
+  const copy = {...original, name: original.name+' (copy)', published:false, views:0};
+  const { data, error } = await sb.from('gifts').insert({...giftToRow(copy), owner_id:u.id}).select().single();
+  if(error){ alert('Could not duplicate: '+error.message); return; }
+  if(original.photos.length){
+    const rows = original.photos.map((p,i)=>({gift_id:data.id, url:p.src, path:p.path||null, caption:p.caption||'', sort_order:i}));
+    await sb.from('gift_photos').insert(rows);
+  }
+  fetchMyGifts();
+}
+let pendingDelete=null;
+function deleteGift(id){ pendingDelete=id; showModal(`
+  <h3>Delete this memory?</h3><p class="muted">This cannot be undone.</p>
+  <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" style="background:#c0304f" onclick="confirmDelete()">Delete Forever</button>
+  </div>`); }
+async function confirmDelete(){
+  const g = giftsCache.find(x=>x.id===pendingDelete);
+  if(g && g.photos.length){
+    const paths = g.photos.map(p=>p.path).filter(Boolean);
+    if(paths.length) await sb.storage.from(MEDIA_BUCKET).remove(paths);
+  }
+  await sb.from('gifts').delete().eq('id', pendingDelete);
+  closeModal(); fetchMyGifts();
+}
+function shareGift(id){
+  const g = (currentGift && currentGift.id===id) ? currentGift : (giftsCache.find(x=>x.id===id) || currentGift);
+  if(!g) return;
+  const link = location.origin+location.pathname+'#gift='+id;
+  showModal(`
+    <h3>Your gift is ready.</h3>
+    <p class="muted">Send this to ${g.name||'them'}.</p>
+    <input readonly value="${link}" style="margin:14px 0" onclick="this.select()">
+    <p class="muted" style="font-size:12px">This link works on any device, for anyone — no account needed.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn btn-ghost" onclick="navigator.clipboard.writeText('${link}');this.textContent='Copied!'">Copy Link</button>
+      <button class="btn btn-ghost" onclick="window.open('https://wa.me/?text='+encodeURIComponent('${link}'))">WhatsApp</button>
+      <button class="btn btn-ghost" onclick="if(navigator.share){navigator.share({title:'A gift for you',url:'${link}'})}else{alert('Web Share not supported in this browser')}">Share</button>
+    </div>
+    <div style="text-align:center;margin-top:16px"><img alt="QR code" style="border-radius:10px" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(link)}"></div>
+  `);
+  if(!g.published){ g.published=true; sb.from('gifts').update({published:true}).eq('id', id); }
+}
+
+/* ---------- EDITOR ---------- */
+function editorView(){
+  if(giftLoading || !currentGift || currentGift.id!==state.giftId){
+    return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center"><p class="muted">Gathering the memories…</p></div>`;
+  }
+  const g = currentGift;
+  const step = state.editorStep||0;
+  return `<div class="editor-shell">
+    <div class="editor-top">
+      <button class="tab" onclick="nav('dashboard')">← HOME</button>
+      <button class="tab" onclick="alert('This tool turns your memories into a personalized digital gift — a birthday letter, photo album and cinematic story, all in one link.')">ABOUT</button>
+      <div class="progress"><div class="progress-fill" style="width:${((step+1)/STEPS.length*100)}%"></div></div>
+      <span class="savestatus" id="saveBadge">${saveStatus}</span>
+    </div>
+    <div class="editor-body">
+      <div class="editor-left">${editorStepBody(g, step)}</div>
+      <div class="editor-right">${phonePreview(g)}</div>
+    </div>
+  </div>`;
+}
+function editorStepBody(g, step){
+  const nav_ = `<div class="editornav">
+    <button class="btn btn-ghost" ${step===0?'disabled style="opacity:.3"':''} onclick="editorGo(${step-1})">← Back</button>
+    <button class="btn btn-primary" onclick="editorGo(${step+1})">${step===STEPS.length-1?'Finish':'Next →'}</button>
+  </div>`;
+  const stepNav = `<div class="stepnav">${STEPS.map((s,i)=>`<span class="step ${i===step?'active':''}">${i+1}. ${s}</span>`).join('')}</div>`;
+
+  if(step===0) return stepNav+`
+    <h1 class="stephead">Who is this <span class="serif-i">for</span></h1>
+    <div class="label">What's the occasion?</div>
+    <div class="chiprow">${Object.entries(OCCASIONS).map(([k,o])=>`<div class="chip ${(g.occasion||'birthday')===k?'sel':''}" onclick="updateField('occasion','${k}')">${o.label}</div>`).join('')}</div>
+    <div class="label">Their Name *<span class="counter" id="nameCounter">${(g.name||'').length} / 150</span></div>
+    <input maxlength="150" value="${esc(g.name)}" oninput="updateName(this.value)" placeholder="Their name">
+    <div class="label">${OCCASIONS[g.occasion||'birthday'].dateLabel}</div>
+    <input type="date" value="${g.dob||''}" onchange="updateField('dob',this.value)">
+    <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px" class="muted">
+      <input type="checkbox" style="width:auto" ${g.unknownYear?'checked':''} onchange="updateField('unknownYear',this.checked)"> I don't know the birth year
+    </label>
+    ${nav_}`;
+
+  if(step===1) return stepNav+`
+    <h1 class="stephead">Your shared <span class="serif-i">memories</span></h1>
+    ${memField(g,'main','Your main message')}
+    ${memField(g,'love','What I Love Most About You')}
+    ${memField(g,'story','Our Story')}
+    ${memField(g,'dreams','Dreams Together')}
+    <div class="label" style="margin-top:30px">Little Things (optional)</div>
+    ${['nickname:Nickname','joke:Inside Joke','memory:Favorite Memory','habit:Funny Habit','phrase:Favorite Phrase','owe:Something I Owe You'].map(p=>{const[k,l]=p.split(':');return `<div style="margin-bottom:10px"><input placeholder="${l}" value="${esc(g.little[k])}" oninput="updateLittle('${k}',this.value)"></div>`}).join('')}
+    ${nav_}`;
+
+  if(step===2) return stepNav+`
+    <h1 class="stephead">Photos & <span class="serif-i">background</span></h1>
+    <div class="label">PHOTOS <span class="counter">${g.photos.length} / 10 files</span></div>
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileinput').click()">
+      <div style="font-size:26px">⤒</div><div style="font-weight:600">Click or drag photos here</div>
+      <div class="muted" style="font-size:12px;margin-top:4px">JPG, PNG, WEBP — max 10 photos</div>
+    </div>
+    <input id="fileinput" type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange="handleFiles(this.files)">
+    <div id="photoerr" class="err"></div>
+    <div class="photogrid">${g.photos.map((p,i)=>`<div class="pthumb" style="background-image:url(${p.src})"><button onclick="removePhoto(${i})">✕</button></div>`).join('')}</div>
+    <div class="label" style="margin-top:26px">Background Intensity</div>
+    <div class="chiprow">${['subtle','balanced','immersive'].map(o=>`<div class="chip ${g.bgIntensity===o?'sel':''}" onclick="updateField('bgIntensity','${o}')">${o[0].toUpperCase()+o.slice(1)}</div>`).join('')}</div>
+    ${nav_}`;
+
+  if(step===3) return stepNav+`
+    <h1 class="stephead">Sound<span class="serif-i">track</span></h1>
+    <div class="label">Upload a song to play in the background (MP3 / WAV / OGG, max 8MB)</div>
+    <div class="dropzone" onclick="document.getElementById('audioinput').click()">
+      <div style="font-size:26px">🎵</div><div style="font-weight:600">${g.musicFile? 'Replace uploaded song' : 'Click to upload a song'}</div>
+      ${g.musicFile?`<audio controls style="width:100%;margin-top:14px" src="${g.musicFile}" onclick="event.stopPropagation()"></audio>`:''}
+    </div>
+    <input id="audioinput" type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg" class="hidden" onchange="handleAudioFile(this.files[0])">
+    <div id="audioerr" class="err"></div>
+    ${g.musicFile?`<button class="btn btn-ghost" style="margin-top:10px" onclick="removeUploadedSong()">Remove uploaded song</button>`:''}
+    <div class="label" style="margin-top:26px">Or paste a link instead (YouTube, Spotify, Apple Music, Deezer, Amazon Music)</div>
+    <input placeholder="https://..." value="${esc(g.music)}" oninput="updateField('music',this.value)">
+    <p class="muted" style="font-size:13px;margin-top:14px">An uploaded song plays automatically in the background of the gift itself. A pasted link is instead offered to the recipient as an "Open Soundtrack" button, since streaming platforms don't allow embedded autoplay.</p>
+    ${nav_}`;
+
+  if(step===4) return stepNav+`
+    <h1 class="stephead">Customize the <span class="serif-i">world</span></h1>
+    <div class="label">Theme</div>
+    <div class="theme-grid">${Object.entries(THEMES).map(([k,t])=>`
+      <div class="themecard ${g.theme===k?'sel':''}" onclick="updateField('theme','${k}')">
+        <div class="sw" style="background:linear-gradient(135deg,${t.c1},${t.c2})"></div>${t.label}
+      </div>`).join('')}</div>
+    ${nav_}`;
+
+  if(step===5) return stepNav+`
+    <h1 class="stephead">Preview the <span class="serif-i">gift</span></h1>
+    <p class="muted">This is exactly what ${g.name||'they'} will see. Tap the box in the preview to test the full experience.</p>
+    <button class="btn btn-primary" onclick="openRecipient('${g.id}')">Open Full Preview</button>
+    ${nav_}`;
+
+  if(step===6) return stepNav+`
+    <h1 class="stephead">Publish & <span class="serif-i">share</span></h1>
+    <p class="muted">${g.published? `Your little universe is live. Send it to ${g.name}.` : `Publishing generates a link only ${g.name||'they'} needs, no account required.`}</p>
+    <button class="btn btn-primary" onclick="publishAndShare()">${g.published?'Manage Link':'Publish Gift'}</button>
+    ${g.published?`<button class="btn btn-ghost" style="margin-left:10px" onclick="updateField('published',false)">Unpublish</button>`:''}
+    ${nav_}`;
+}
+function memField(g,key,label){
+  return `<div class="label">${label.toUpperCase()}</div>
+  <div style="position:relative">
+    <textarea oninput="updateMsg('${key}',this.value)">${esc(g.messages[key])}</textarea>
+    <button class="aibtn" style="position:absolute;top:-40px;right:0" onclick="openAI('${key}')">✨ Generate with AI</button>
+  </div>`;
+}
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+function editorGo(step){
+  if(step<0 || !currentGift) return;
+  if(step>=STEPS.length){ nav('editor',{giftId:currentGift.id,editorStep:6}); return; }
+  nav('editor',{giftId:currentGift.id,editorStep:step});
+}
+function updateField(key,val){ if(!currentGift) return; currentGift[key]=val; queueSave(currentGift); rerenderKeepScroll(); }
+function updateName(val){ if(!currentGift) return; currentGift.name=val; queueSave(currentGift); const c=document.getElementById('nameCounter'); if(c) c.textContent = val.length+' / 150'; syncPhoneOnly(currentGift); }
+function updateMsg(key,val){ if(!currentGift) return; currentGift.messages[key]=val; queueSave(currentGift); syncPhoneOnly(currentGift); }
+function updateLittle(key,val){ if(!currentGift) return; currentGift.little[key]=val; queueSave(currentGift); }
+function rerenderKeepScroll(){ const y=document.querySelector('.editor-left')?.scrollTop||0; render(); const el=document.querySelector('.editor-left'); if(el) el.scrollTop=y; }
+function syncPhoneOnly(g){ const p=document.querySelector('.editor-right'); if(p) p.innerHTML=phonePreview(g); }
+
+/* Photo handling — files upload straight to Supabase Storage + a gift_photos row */
+async function handleFiles(files){
+  if(!currentGift) return;
+  const errEl = document.getElementById('photoerr');
+  errEl.textContent='';
+  const valid = ['image/jpeg','image/png','image/webp'];
+  let list = Array.from(files);
+  if(currentGift.photos.length + list.length > 10){
+    errEl.textContent = `You can upload up to 10 photos (you have ${currentGift.photos.length}, tried to add ${list.length}).`;
+    list = list.slice(0, 10-currentGift.photos.length);
+  }
+  for(const f of list){
+    if(!valid.includes(f.type)){ errEl.textContent = `"${f.name}" isn't a supported format (use JPG, PNG or WEBP).`; continue; }
+    if(f.size > 8*1024*1024){ errEl.textContent = `"${f.name}" is too large (max 8MB).`; continue; }
+    const tempId = uid();
+    currentGift.photos.push({id:tempId, src:URL.createObjectURL(f), path:'', caption:'', uploading:true});
+    rerenderKeepScroll();
+    const path = `${currentGift.ownerId}/${currentGift.id}/${uid()}-${f.name}`;
+    const { error: upErr } = await sb.storage.from(MEDIA_BUCKET).upload(path, f);
+    if(upErr){
+      errEl.textContent = `Upload failed for "${f.name}": ${upErr.message}`;
+      currentGift.photos = currentGift.photos.filter(p=>p.id!==tempId);
+      rerenderKeepScroll(); continue;
+    }
+    const { data: pub } = sb.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+    const { data: row, error: insErr } = await sb.from('gift_photos').insert({ gift_id: currentGift.id, url: pub.publicUrl, path, sort_order: currentGift.photos.length }).select().single();
+    const slot = currentGift.photos.find(p=>p.id===tempId);
+    if(slot){ slot.uploading=false; slot.path=path; slot.src=pub.publicUrl; if(!insErr) slot.id=row.id; }
+    rerenderKeepScroll();
+  }
+}
+async function removePhoto(i){
+  if(!currentGift) return;
+  const photo = currentGift.photos[i]; if(!photo) return;
+  currentGift.photos.splice(i,1); rerenderKeepScroll();
+  if(photo.path) await sb.storage.from(MEDIA_BUCKET).remove([photo.path]);
+  if(photo.id) await sb.from('gift_photos').delete().eq('id', photo.id);
+}
+async function handleAudioFile(file){
+  const errEl=document.getElementById('audioerr'); if(errEl) errEl.textContent='';
+  if(!file || !currentGift) return;
+  const okTypes=['audio/mpeg','audio/mp3','audio/wav','audio/ogg'];
+  if(!okTypes.includes(file.type)){ if(errEl) errEl.textContent='Please upload an MP3, WAV or OGG file.'; return; }
+  if(file.size > 8*1024*1024){ if(errEl) errEl.textContent='That file is too large — please keep it under 8MB.'; return; }
+  if(errEl) errEl.textContent='Uploading…';
+  if(currentGift.musicPath) await sb.storage.from(MEDIA_BUCKET).remove([currentGift.musicPath]).catch(()=>{});
+  const path = `${currentGift.ownerId}/${currentGift.id}/audio-${uid()}-${file.name}`;
+  const { error: upErr } = await sb.storage.from(MEDIA_BUCKET).upload(path, file, {upsert:true});
+  if(upErr){ if(errEl) errEl.textContent='Upload failed: '+upErr.message; return; }
+  const { data: pub } = sb.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+  currentGift.musicFile = pub.publicUrl; currentGift.musicPath = path;
+  await sb.from('gifts').update({ music_file_url: pub.publicUrl, music_path: path }).eq('id', currentGift.id);
+  if(errEl) errEl.textContent='';
+  rerenderKeepScroll();
+}
+async function removeUploadedSong(){
+  if(!currentGift) return;
+  if(currentGift.musicPath) await sb.storage.from(MEDIA_BUCKET).remove([currentGift.musicPath]).catch(()=>{});
+  currentGift.musicFile=''; currentGift.musicPath='';
+  await sb.from('gifts').update({ music_file_url:'', music_path:null }).eq('id', currentGift.id);
+  rerenderKeepScroll();
+}
+
+/* Drag/drop wiring done in wireEvents */
+
+/* AI Assistant (local, template-based fallback — clearly not calling an external model) */
+let aiState={field:null,rel:null,feel:null};
+function openAI(field){
+  aiState={field,rel:null,feel:null};
+  showModal(aiModalBody());
+}
+function aiModalBody(){
+  return `<h3>✨ Write it with me</h3><p class="muted">A local writing assistant — no external AI is called in this demo.</p>
+  <div class="label">Who are they to you?</div>
+  <div class="chiprow">${REL.map(r=>`<div class="chip ${aiState.rel===r?'sel':''}" onclick="aiState.rel='${r}';showModal(aiModalBody())">${r}</div>`).join('')}</div>
+  <div class="label">What feeling should it have?</div>
+  <div class="chiprow">${FEEL.map(r=>`<div class="chip ${aiState.feel===r?'sel':''}" onclick="aiState.feel='${r}';showModal(aiModalBody())">${r}</div>`).join('')}</div>
+  <div class="label">Tell us a little about them...</div>
+  <textarea id="aiDetails" placeholder="A memory, a trait, an inside joke..."></textarea>
+  <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="generateAIMessage()">Generate Message</button>`;
+}
+function generateAIMessage(){
+  const details = document.getElementById('aiDetails').value.trim();
+  const g = currentGift; if(!g) return;
+  const name = g.name || 'you';
+  const rel = aiState.rel || 'someone special';
+  const feel = aiState.feel || 'Emotional';
+  const bank = {
+    Emotional: `${name}, some people come into your life quietly and somehow become the loudest, warmest part of it. That's you. ${details? details+'. ' : ''}Today I just want you to know how much you mean, as my ${rel.toLowerCase()}.`,
+    Funny: `${name}, I was going to write something deep, but honestly you're too chaotic for that. ${details? details+'. ' : ''}Happy birthday to the ${rel.toLowerCase()} who makes even ordinary days ridiculous — in the best way.`,
+    Romantic: `${name}, every version of "us" I imagine starts with you. ${details? details+'. ' : ''}Happy birthday to my favorite person, my ${rel.toLowerCase()}, my always.`,
+    Deep: `${name}, time moves strangely with people who matter — some days feel like years, some years feel like a breath. ${details? details+'. ' : ''}I'm grateful the timeline gave me you.`,
+    Nostalgic: `${name}, I keep thinking about everything we've already lived through together. ${details? details+'. ' : ''}Happy birthday — here's to remembering, and to everything still ahead.`,
+    Playful: `${name}!! It's your day! ${details? details+'. ' : ''}As your ${rel.toLowerCase()}, I hereby declare today officially yours. Go be extra about it.`
+  };
+  const text = bank[feel] || bank.Emotional;
+  const field = aiState.field;
+  const apply = ()=>{ g.messages[field]=text; queueSave(g); closeModal(); rerenderKeepScroll(); };
+  if(g.messages[field] && g.messages[field].trim().length){
+    window.__pendingAIApply = apply;
+    showModal(`<h3>Replace existing text?</h3><p class="muted">This will overwrite what's already written in this field.</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="window.__pendingAIApply()">Replace</button>
+      </div>`);
+  } else { apply(); }
+}
+
+/* ---------- PHONE PREVIEW ---------- */
+function phonePreview(g){
+  const th = THEMES[g.theme];
+  return `<div class="phonewrap">
+    <div class="phonectrls">
+      <select onchange="updateField('theme',this.value)">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${g.theme===k?'selected':''}>${t.label}</option>`).join('')}</select>
+      <button onclick="openRecipient('${g.id}')">Preview</button>
+      <button onclick="rerenderKeepScroll()">Reset</button>
+    </div>
+    <div class="phone">
+      <div class="phone-screen" style="background:${th.bg}">
+        ${g.photos[0]?`<div style="position:absolute;inset:0;background-image:url(${g.photos[0].src});background-size:cover;background-position:center;opacity:.35"></div>`:''}
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px">
+          <div class="muted" style="font-size:11px;letter-spacing:.15em">TO</div>
+          <div class="serif" style="font-size:26px;color:${th.c1};margin:6px 0">${g.name||'Someone'}</div>
+          <div class="giftbox" style="transform:scale(.7)"><div class="box" style="background:linear-gradient(135deg,${th.c1},${th.c2})"><div class="ribbon-v" style="background:#fff3"></div><div class="ribbon-h" style="background:#fff3"></div></div></div>
+          <div class="tapme">↑ TAP TO OPEN</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">MOBILE PREVIEW · 383×852</div>
+  </div>`;
+}
+
+/* ---------- MODAL ---------- */
+function showModal(html){ closeModal(); const d=document.createElement('div'); d.className='modal-bg'; d.id='modalbg'; d.onclick=(e)=>{if(e.target.id==='modalbg')closeModal();}; d.innerHTML=`<div class="modal">${html}</div>`; document.body.appendChild(d); }
+function closeModal(){ const m=document.getElementById('modalbg'); if(m) m.remove(); }
+
+/* ---------- RECIPIENT EXPERIENCE ---------- */
+function publishAndShare(){ if(currentGift) shareGift(currentGift.id); }
+function openRecipient(id, opts){
+  const g = (currentGift && currentGift.id===id) ? currentGift : (giftsCache.find(x=>x.id===id) || currentGift);
+  if(!g) return;
+  const el = document.createElement('div');
+  el.id='recipient';
+  document.body.appendChild(el);
+  runRecipientExperience(g, el, opts||{});
+}
+function closeRecipient(){
+  const el=document.getElementById('recipient'); if(el) el.remove();
+  const a=document.getElementById('giftAudio'); if(a) a.remove();
+  const mc=document.getElementById('musicCtrl'); if(mc) mc.remove();
+  if(window.__sparkleInterval){ clearInterval(window.__sparkleInterval); window.__sparkleInterval=null; }
+}
+
+function runRecipientExperience(g, root, opts){
+  opts = opts||{};
+  const publicMode = !!opts.publicMode;
+  const th = THEMES[g.theme];
+  const photos = g.photos.length? g.photos : [{src:''}];
+  let idx=0, opened=false;
+  const scenes = buildScenes(g);
+  let sceneIdx = -1;
+
+  /* Persistent background audio — lives outside `root` so scene transitions never restart it */
+  if(g.musicFile){
+    let audioEl = document.getElementById('giftAudio');
+    if(!audioEl){ audioEl=document.createElement('audio'); audioEl.id='giftAudio'; audioEl.loop=true; audioEl.src=g.musicFile; audioEl.style.display='none'; document.body.appendChild(audioEl); }
+    let ctrl = document.getElementById('musicCtrl');
+    if(!ctrl){
+      ctrl=document.createElement('button'); ctrl.id='musicCtrl';
+      ctrl.style.cssText='position:fixed;bottom:20px;right:20px;z-index:220;background:rgba(0,0,0,.5);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:10px 16px;font-size:13px;backdrop-filter:blur(6px)';
+      ctrl.onclick=()=>{ if(audioEl.paused){ audioEl.play().then(()=>ctrl.textContent='🔊 Pause music').catch(()=>ctrl.textContent='🔈 Tap for sound'); } else { audioEl.pause(); ctrl.textContent='🔈 Tap for sound'; } };
+      document.body.appendChild(ctrl);
+    }
+    audioEl.play().then(()=>{ctrl.textContent='🔊 Pause music';}).catch(()=>{ctrl.textContent='🔈 Tap for sound';});
+  }
+
+  /* Ambient sparkles drifting upward — pure atmosphere, doesn't block taps */
+  if(window.__sparkleInterval) clearInterval(window.__sparkleInterval);
+  window.__sparkleInterval = setInterval(()=>{
+    const r=document.getElementById('recipient'); if(!r) return;
+    const s=document.createElement('div'); const size=2+Math.random()*4;
+    s.style.cssText=`position:absolute;pointer-events:none;border-radius:50%;width:${size}px;height:${size}px;left:${Math.random()*100}%;top:100%;background:${th.c1};z-index:4;opacity:.55`;
+    r.appendChild(s);
+    s.animate([{transform:'translateY(0)',opacity:.55},{transform:`translateY(-${300+Math.random()*300}px)`,opacity:0}],{duration:4500+Math.random()*2000,easing:'linear'});
+    setTimeout(()=>s.remove(),7000);
+  }, 650);
+
+  let activeLayer='a';
+  const openerText=(g.occasion&&g.occasion!=='birthday')?OCCASIONS[g.occasion].greet.toUpperCase():th.opener;
+  function ensureShellDom(){
+    if(root.dataset.built) return;
+    root.dataset.built='1';
+    root.innerHTML = `
+      <div class="rlayer rbg" id="rbgA0"></div>
+      <div class="rlayer rbg rbg-blur" id="rbgA1"></div>
+      <div class="rlayer rbg" id="rbgB0" style="opacity:0"></div>
+      <div class="rlayer rbg rbg-blur" id="rbgB1" style="opacity:0"></div>
+      <div class="rlayer rgrad"></div>
+      <div class="rlayer rvignette"></div>
+      ${publicMode?'':`<button class="exitr" onclick="closeRecipient()">✕ Close preview</button>`}
+      <div class="rcontent" id="rContentWrap"></div>
+      <div class="rfooter">Made with ❤️ by Tushar Goyal</div>
+    `;
+  }
+  function setBackground(){
+    const p = photos[idx % photos.length];
+    const next = activeLayer==='a' ? 'b' : 'a';
+    const n0=document.getElementById('rbg'+next.toUpperCase()+'0'), n1=document.getElementById('rbg'+next.toUpperCase()+'1');
+    const c0=document.getElementById('rbg'+activeLayer.toUpperCase()+'0'), c1=document.getElementById('rbg'+activeLayer.toUpperCase()+'1');
+    if(!n0) return;
+    if(p && p.src){ n0.style.background=`url(${p.src}) center/cover`; n1.style.background=`url(${p.src}) center/cover`; }
+    else { n0.style.background=`radial-gradient(circle at 50% 30%, ${th.c1}22, ${th.bg} 70%)`; n1.style.background='none'; }
+    n0.style.opacity=1; n1.style.opacity=1;
+    c0.style.opacity=0; c1.style.opacity=0;
+    activeLayer = next;
+  }
+  function setContent(html){
+    const wrap = document.getElementById('rContentWrap');
+    if(!wrap.innerHTML.trim()){ wrap.innerHTML=html; return; }
+    wrap.classList.add('rout');
+    setTimeout(()=>{ wrap.innerHTML=html; wrap.classList.remove('rout'); }, 320);
+  }
+  function shell(inner){ ensureShellDom(); setBackground(); setContent(inner); }
+
+  shell(`
+    <div class="muted" style="letter-spacing:.2em;font-size:12px">🎉 ${openerText}</div>
+    <h1>${g.name||'Someone'}</h1>
+    <div class="giftbox" onclick="window.__openGift()">
+      <div class="box" style="background:linear-gradient(135deg,${th.c1},${th.c2})">
+        <div class="ribbon-v"></div><div class="ribbon-h"></div>
+      </div>
+    </div>
+    <div class="tapme">TAP TO OPEN</div>
+  `);
+
+  playPandaIntro([`Hello, ${g.name||'there'}! 👋`,`I heard today is ${OCCASIONS[g.occasion||'birthday'].phrase}…`,'Somebody made something special for you.'],()=>{
+    const a=document.getElementById('giftAudio');
+    if(a) a.play().then(()=>{const c=document.getElementById('musicCtrl'); if(c) c.textContent='🔊 Pause music';}).catch(()=>{});
+  });
+  window.__openGift = function(){
+    if(opened) return; opened=true;
+    burstParticles(root, th.c1, false);
+    setTimeout(()=>{ sceneIdx=0; showScene(); }, 650);
+  };
+
+  function showScene(){
+    if(sceneIdx>=scenes.length){ replay(); return; }
+    idx = sceneIdx;
+    const s = scenes[sceneIdx];
+    const isFinal = sceneIdx===scenes.length-1;
+    if(isFinal) setTimeout(()=>burstParticles(root, th.c1, true), 350);
+    shell(`
+      ${s.eyebrow?`<div class="muted" style="letter-spacing:.2em;font-size:12px">${s.emoji?s.emoji+' ':''}${s.eyebrow}</div>`:''}
+      <h1 style="${s.small?'font-size:clamp(20px,4.5vw,30px)':''}">${s.title||''}</h1>
+      ${s.text?`<p>${s.text}</p>`:''}
+      ${s.extra||''}
+      <div style="display:flex;gap:12px;margin-top:34px">
+        ${sceneIdx>0?`<button class="btn btn-ghost" onclick="window.__prevScene()">← Back</button>`:''}
+        <button class="btn btn-primary" onclick="window.__nextScene()">${isFinal?'Replay ↺':(s.cta||'Continue →')}</button>
+      </div>
+    `);
+  }
+  window.__nextScene = ()=>{ sceneIdx++; if(sceneIdx>=scenes.length){ replay(); } else showScene(); };
+  window.__prevScene = ()=>{ sceneIdx=Math.max(0,sceneIdx-1); showScene(); };
+  window.__openPhoto = (src)=>{
+    const v=document.createElement('div');
+    v.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;align-items:center;justify-content:center;padding:30px;opacity:0;transition:opacity .25s ease';
+    v.onclick=()=>{ v.style.opacity=0; setTimeout(()=>v.remove(),250); };
+    v.innerHTML=`<img src="${src}" style="max-width:100%;max-height:100%;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.6)">`;
+    document.body.appendChild(v);
+    requestAnimationFrame(()=>v.style.opacity=1);
+  };
+  function replay(){ opened=false; sceneIdx=-1; idx=0; shell(`
+      <div class="muted" style="letter-spacing:.2em;font-size:12px">🎉 ${openerText}</div>
+      <h1>${g.name||'Someone'}</h1>
+      <div class="giftbox" onclick="window.__openGift()"><div class="box" style="background:linear-gradient(135deg,${th.c1},${th.c2})"><div class="ribbon-v"></div><div class="ribbon-h"></div></div></div>
+      <div class="tapme">TAP TO OPEN</div>`); }
+}
+
+function buildScenes(g){
+  const OCC=OCCASIONS[g.occasion||'birthday'];
+  const name=g.name||'you';
+  const lt=g.little;
+  const littleItems=[['nickname','Nickname','🏷️'],['joke','Inside Joke','😄'],['memory','Favorite Memory','📸'],['habit','Funny Habit','😂'],['phrase','Favorite Phrase','💬'],['owe','Something I Owe You','🎯']].filter(([k])=>lt[k]);
+  let liPtr=0;
+  const pushLittle=(scenes)=>{ if(liPtr<littleItems.length){ const [k,l,emoji]=littleItems[liPtr++]; scenes.push({eyebrow:'A LITTLE THING', small:true, emoji, extra:`<div class="card-float" style="margin:0 auto"><div style="font-size:30px">${emoji}</div><div class="muted" style="font-size:11px;letter-spacing:.08em;margin-top:6px">${l.toUpperCase()}</div><div style="margin-top:6px;font-family:var(--serif);font-size:20px">${esc(lt[k])}</div></div>`}); } };
+  const scenes=[
+    {eyebrow:OCC.greet.toUpperCase(), emoji:'🎉', title:`${OCC.greet},<br><span style="font-family:var(--serif);font-style:italic;color:var(--accent)">${name}</span>`},
+  ];
+  if(g.messages.main) scenes.push({eyebrow:'FOR YOU', emoji:'💌', text:g.messages.main});
+  pushLittle(scenes);
+  if(g.messages.love) scenes.push({eyebrow:'WHAT I LOVE MOST ABOUT YOU', emoji:'✨', text:g.messages.love});
+  pushLittle(scenes);
+  if(g.messages.story) scenes.push({eyebrow:'OUR STORY', emoji:'📖', text:g.messages.story});
+  pushLittle(scenes);
+  if(g.photos.length){
+    scenes.push({eyebrow:'SHARED MEMORIES', emoji:'🖼️', extra:`
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:14px;max-width:520px">
+        ${g.photos.slice(0,8).map((p,i)=>`<img src="${p.src}" onclick="window.__openPhoto('${p.src}')" style="width:${112+((i%3)*10)}px;height:${142+((i%2)*10)}px;object-fit:cover;border-radius:8px;transform:rotate(${(i%2?1:-1)*(3+(i%4))}deg);box-shadow:0 14px 30px rgba(0,0,0,.5);border:5px solid #fff;cursor:pointer;transition:transform .25s" onmouseover="this.style.transform='rotate(0deg) scale(1.08)'" onmouseout="this.style.transform='rotate(${(i%2?1:-1)*(3+(i%4))}deg)'">`).join('')}
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:12px">Tap a photo to view it full-screen</div>
+    `});
+  }
+  pushLittle(scenes);
+  if(g.messages.dreams) scenes.push({eyebrow:'DREAMS TOGETHER', emoji:'🌙', text:g.messages.dreams});
+  while(liPtr<littleItems.length) pushLittle(scenes);
+  if(g.music) scenes.push({eyebrow:'A SONG FOR YOU', emoji:'🎧', text:'This one made me think of you.', extra:`<a class="btn btn-primary" style="text-decoration:none;display:inline-block;margin-top:10px" href="${g.music}" target="_blank">▶ Open Soundtrack</a>`});
+  scenes.push({title:"You're almost there...", small:true, emoji:'🕯️'});
+  scenes.push({eyebrow:'ONE LAST THING', emoji:'❤️', title:`${OCC.greet}, ${name}. ❤️`,
+    extra: g.photos.length? `<img src="${g.photos[g.photos.length-1].src}" onclick="window.__openPhoto('${g.photos[g.photos.length-1].src}')" style="max-width:220px;border-radius:14px;margin-top:16px;box-shadow:0 20px 50px rgba(0,0,0,.5);cursor:pointer">` : ''});
+  return scenes;
+}
+function burstParticles(root, color, big){
+  const n=big?70:26;
+  for(let i=0;i<n;i++){
+    const p=document.createElement('div');
+    const size=(big?5:4)+Math.random()*(big?9:6);
+    p.style.cssText=`position:absolute;pointer-events:none;border-radius:${big&&i%3===0?'2px':'50%'};width:${size}px;height:${size}px;left:50%;top:${big?'38%':'45%'};background:${i%2?color:'#fff'};z-index:8`;
+    root.appendChild(p);
+    const ang=Math.random()*Math.PI*2, dist=(big?160:80)+Math.random()*(big?280:160);
+    p.animate([{transform:'translate(0,0) rotate(0deg)',opacity:1},{transform:`translate(${Math.cos(ang)*dist}px,${Math.sin(ang)*dist}px) rotate(${Math.random()*360}deg)`,opacity:0}],{duration:(big?1500:900)+Math.random()*600,easing:'ease-out'});
+    setTimeout(()=>p.remove(),2300);
+  }
+}
+
+/* ---------- AUTH ACTIONS (real Supabase) ---------- */
+async function doLogin(email,pw){
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if(error) return error.message;
+  session = data.session;
+  nav('dashboard');
+  return null;
+}
+async function doSignup(name,email,pw,pw2){
+  if(pw!==pw2) return "Passwords don't match.";
+  if(pw.length<6) return 'Password must be at least 6 characters.';
+  const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name } } });
+  if(error) return error.message;
+  session = data.session;
+  if(!session) return 'Account created — check your inbox to confirm your email, then log in.';
+  nav('dashboard');
+  return null;
+}
+async function loginWithGoogle(){
+  await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+}
+async function logout(){
+  await sb.auth.signOut();
+  session=null; giftsCache=[]; currentGift=null;
+  state.menuOpen=false; nav('landing');
+}
+function toggleMenu(){ state.menuOpen=!state.menuOpen; render(); }
+
+/* ---------- EVENT WIRING ---------- */
+function wireEvents(){
+  const form = document.getElementById('authform');
+  if(form){
+    form.onsubmit = async (e)=>{
+      e.preventDefault();
+      const errEl=document.getElementById('af_err'); errEl.textContent='';
+      const email=document.getElementById('af_email').value.trim();
+      const pw=document.getElementById('af_pw').value;
+      let err;
+      if(state.view==='signup'){
+        const name=document.getElementById('af_name').value.trim();
+        const pw2=document.getElementById('af_pw2').value;
+        err = await doSignup(name,email,pw,pw2);
+      } else {
+        err = await doLogin(email,pw);
+      }
+      if(err) errEl.textContent = err;
+    };
+  }
+  const dz = document.getElementById('dropzone');
+  if(dz){
+    ['dragover','dragleave','drop'].forEach(ev=>dz.addEventListener(ev, e=>{
+      e.preventDefault();
+      if(ev==='dragover') dz.classList.add('drag'); else dz.classList.remove('drag');
+      if(ev==='drop') handleFiles(e.dataTransfer.files);
+    }));
+  }
+}
+
+/* ---------- INIT ---------- */
+async function checkPublicLink(){
+  const m = location.hash.match(/^#gift=(.+)$/);
+  if(!m) return false;
+  const id = m[1];
+  document.body.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:#0B0B10;color:#F2EFEF;font-family:'Inter',sans-serif"><p style="color:#9b96a3">Preparing something special…</p></div>`;
+  const { data, error } = await sb.from('gifts').select('*, gift_photos(*)').eq('id', id).eq('published', true).maybeSingle();
+  if(error || !data){
+    document.body.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:#0B0B10;color:#F2EFEF;font-family:'Inter',sans-serif"><div><h2 style="font-family:'Cormorant Garamond',serif;font-size:28px">This gift isn't available.</h2><p style="color:#9b96a3">It may still be a draft, or the link may be incorrect.</p></div></div>`;
+    return true;
+  }
+  const g = rowToGift(data, data.gift_photos);
+  sb.rpc('increment_gift_views', { gift_id: id });
+  document.body.innerHTML = '';
+  const el=document.createElement('div'); el.id='recipient'; document.body.appendChild(el);
+  runRecipientExperience(g, el, {publicMode:true});
+  return true;
+}
+window.addEventListener('beforeunload', (e)=>{ if(saveStatus==='Saving…'){ e.preventDefault(); e.returnValue=''; } });
+function playPandaIntro(lines,onDone){
+  const ov=document.createElement('div'); ov.className='panda-intro';
+  ov.innerHTML=`<button class="panda-skip" aria-label="Skip intro">Skip</button>
+  <svg class="panda" viewBox="0 0 200 230" role="img" aria-label="A friendly panda waving hello">
+    <circle cx="55" cy="48" r="19" fill="#111"/><circle cx="145" cy="48" r="19" fill="#111"/>
+    <ellipse cx="66" cy="212" rx="22" ry="12" fill="#111"/><ellipse cx="134" cy="212" rx="22" ry="12" fill="#111"/>
+    <ellipse cx="100" cy="163" rx="54" ry="56" fill="#fff"/>
+    <ellipse cx="52" cy="152" rx="12" ry="29" fill="#111" transform="rotate(12 52 152)"/>
+    <circle cx="100" cy="97" r="50" fill="#fff"/>
+    <ellipse cx="77" cy="92" rx="14" ry="17" fill="#111" transform="rotate(-22 77 92)"/>
+    <ellipse cx="123" cy="92" rx="14" ry="17" fill="#111" transform="rotate(22 123 92)"/>
+    <g class="panda-eye"><circle cx="79" cy="91" r="5.5" fill="#fff"/><circle cx="80" cy="92" r="2.6" fill="#111"/></g>
+    <g class="panda-eye"><circle cx="121" cy="91" r="5.5" fill="#fff"/><circle cx="120" cy="92" r="2.6" fill="#111"/></g>
+    <ellipse cx="100" cy="111" rx="8" ry="5.5" fill="#111"/>
+    <path d="M91 119 Q100 129 109 119" stroke="#111" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <ellipse cx="66" cy="112" rx="7" ry="4" fill="#F4568C" opacity=".35"/><ellipse cx="134" cy="112" rx="7" ry="4" fill="#F4568C" opacity=".35"/>
+    <g class="wave-arm"><ellipse cx="164" cy="122" rx="12" ry="30" fill="#111" transform="rotate(28 164 122)"/></g>
+  </svg>
+  <div class="bubble" id="pBubble" aria-live="polite"></div>`;
+  document.body.appendChild(ov);
+  const bub=ov.querySelector('#pBubble');
+  let done=false;
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const finish=()=>{
+    if(done) return; done=true;
+    if(onDone){ try{ onDone(); }catch(e){} }
+    ov.classList.add('out');
+    setTimeout(()=>ov.remove(),950);
+  };
+  ov.querySelector('.panda-skip').onclick=finish;
+  (async()=>{
+    await sleep(1200);
+    for(const line of lines){
+      if(done) return;
+      bub.classList.add('show'); bub.textContent='';
+      for(const ch of line){ if(done) return; bub.textContent+=ch; await sleep(30); }
+      await sleep(1200);
+    }
+    finish();
+  })();
+}
+async function boot(){
+  const isPublic = await checkPublicLink();
+  if(isPublic) return;
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  sb.auth.onAuthStateChange((_event, newSession)=>{ session = newSession; render(); });
+  render();
+}
+boot();
+</script>
+</body>
+</html>
