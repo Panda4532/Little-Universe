@@ -99,7 +99,7 @@ nav{position:sticky;top:0;z-index:20;background:rgba(11,11,16,.7);backdrop-filte
 .empty{text-align:center;padding:90px 20px}
 
 /* EDITOR */
-.editor-shell{display:flex;flex-direction:column;height:100vh}
+.editor-shell{display:flex;flex-direction:column;height:100vh;height:100dvh}
 .editor-top{display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--surf1)}
 .tab{padding:8px 14px;border-radius:999px;background:var(--surf2);font-size:13px;color:var(--muted)}
 .tab.active{background:var(--text);color:#0B0B10;font-weight:600}
@@ -194,11 +194,18 @@ textarea{min-height:100px;resize:vertical}
 .bubble{position:relative;margin-top:26px;background:#fff;color:#15151D;border-radius:20px;padding:16px 22px;max-width:340px;min-height:76px;font-size:15px;line-height:1.55;text-align:center;box-shadow:0 18px 40px rgba(0,0,0,.4);opacity:0;transform:translateY(10px);transition:opacity .5s ease,transform .5s cubic-bezier(.2,.8,.2,1)}
 .bubble.show{opacity:1;transform:none}
 .bubble::before{content:'';position:absolute;top:-9px;left:50%;margin-left:-9px;border:9px solid transparent;border-top:0;border-bottom-color:#fff}
+.mobile-preview-fab{display:none;position:fixed;bottom:20px;right:20px;z-index:60;align-items:center;gap:6px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:999px;padding:12px 18px;font-size:13px;font-weight:600;box-shadow:0 12px 28px rgba(244,86,140,.35)}
 @media(max-width:880px){
-  .editor-body{flex-direction:column;overflow-y:auto}
-  .editor-left{padding:26px}
-  .editor-right{padding:60px 0}
+  .editor-body{flex-direction:column;overflow-y:auto;height:auto}
+  .editor-left{padding:20px;flex:none}
+  .editor-right{padding:40px 0;flex:none;overflow:visible}
   .phonewrap{transform:scale(.85)}
+  .editor-body[data-step="0"] .editor-right,
+  .editor-body[data-step="1"] .editor-right,
+  .editor-body[data-step="2"] .editor-right,
+  .editor-body[data-step="3"] .editor-right,
+  .editor-body[data-step="4"] .editor-right{ display:none; }
+  .mobile-preview-fab{ display:flex; }
 }
 </style>
 </head>
@@ -521,15 +528,26 @@ async function confirmDelete(){
   await sb.from('gifts').delete().eq('id', pendingDelete);
   closeModal(); fetchMyGifts();
 }
-function shareGift(id){
+async function shareGift(id){
   const g = (currentGift && currentGift.id===id) ? currentGift : (giftsCache.find(x=>x.id===id) || currentGift);
   if(!g) return;
   const link = location.origin+location.pathname+'#gift='+id;
+  if(!g.published){
+    showModal(`<h3>Publishing…</h3><p class="muted">One moment.</p>`);
+    const { error } = await sb.from('gifts').update({ published:true }).eq('id', id);
+    if(error){
+      showModal(`<h3>Couldn't publish this gift.</h3><p class="muted" style="font-size:13px">${error.message}</p><button class="btn btn-primary" style="margin-top:14px" onclick="shareGift('${id}')">Try Again</button>`);
+      return;
+    }
+    g.published = true;
+    if(currentGift && currentGift.id===id) currentGift.published = true;
+    const cached = giftsCache.find(x=>x.id===id); if(cached) cached.published = true;
+  }
   showModal(`
     <h3>Your gift is ready.</h3>
     <p class="muted">Send this to ${g.name||'them'}.</p>
     <input readonly value="${link}" style="margin:14px 0" onclick="this.select()">
-    <p class="muted" style="font-size:12px">This link works on any device, for anyone — no account needed.</p>
+    <p class="muted" style="font-size:12px">✓ Published — this link works on any device, for anyone, no account needed.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
       <button class="btn btn-ghost" onclick="navigator.clipboard.writeText('${link}');this.textContent='Copied!'">Copy Link</button>
       <button class="btn btn-ghost" onclick="window.open('https://wa.me/?text='+encodeURIComponent('${link}'))">WhatsApp</button>
@@ -537,7 +555,6 @@ function shareGift(id){
     </div>
     <div style="text-align:center;margin-top:16px"><img alt="QR code" style="border-radius:10px" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(link)}"></div>
   `);
-  if(!g.published){ g.published=true; sb.from('gifts').update({published:true}).eq('id', id); }
 }
 
 /* ---------- EDITOR ---------- */
@@ -554,10 +571,11 @@ function editorView(){
       <div class="progress"><div class="progress-fill" style="width:${((step+1)/STEPS.length*100)}%"></div></div>
       <span class="savestatus" id="saveBadge">${saveStatus}</span>
     </div>
-    <div class="editor-body">
+    <div class="editor-body" data-step="${step}">
       <div class="editor-left">${editorStepBody(g, step)}</div>
       <div class="editor-right">${phonePreview(g)}</div>
     </div>
+    <button class="mobile-preview-fab" onclick="openRecipient('${g.id}')">👁 Preview</button>
   </div>`;
 }
 function editorStepBody(g, step){
