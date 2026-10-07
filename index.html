@@ -156,10 +156,16 @@ textarea{min-height:100px;resize:vertical}
 .rbg-blur{filter:blur(40px) brightness(.5) saturate(1.15);transform:scale(1.2)}
 .rvignette{background:radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,.75) 100%)}
 .rgrad{background:linear-gradient(180deg, rgba(0,0,0,.3), rgba(0,0,0,.75) 70%)}
-.rcontent{position:relative;z-index:5;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 24px;opacity:1;transition:opacity .35s ease,transform .4s cubic-bezier(.2,.8,.2,1)}
+.rcontent{position:relative;z-index:5;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;padding:56px 24px 120px;overflow-y:auto;-webkit-overflow-scrolling:touch;opacity:1;transition:opacity .35s ease,transform .4s cubic-bezier(.2,.8,.2,1)}
+.rcontent > :first-child{margin-top:auto}
+.rcontent > :last-child{margin-bottom:auto}
 .rcontent.rout{opacity:0;transform:translateY(16px) scale(.985)}
 .rcontent h1{font-family:var(--serif);font-size:clamp(28px,7vw,48px);margin:0}
-.rcontent p{font-size:16px;color:#e8e4ea;max-width:400px;line-height:1.6}
+.rcontent p{font-size:16px;color:#e8e4ea;max-width:520px;line-height:1.6;white-space:pre-line}
+.scrollbtn{position:absolute;bottom:58px;left:50%;margin-left:-22px;z-index:7;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(6px);font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease,background .2s}
+.scrollbtn.show{opacity:1;pointer-events:auto;animation:scrollNudge 1.6s ease-in-out infinite}
+.scrollbtn:hover{background:rgba(0,0,0,.8)}
+@keyframes scrollNudge{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
 .giftbox{width:130px;height:130px;margin:34px auto;position:relative;cursor:pointer;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
 .giftbox:hover{transform:scale(1.05)}
 .giftbox::before{content:'';position:absolute;inset:-24px;border-radius:50%;background:radial-gradient(circle, var(--accent) 0%, transparent 70%);opacity:.4;filter:blur(18px);animation:glowPulse 2.6s ease-in-out infinite}
@@ -237,9 +243,6 @@ const REL = ['Best Friend','Partner','Sibling','Parent','Crush','Someone Special
 const FEEL = ['Emotional','Funny','Romantic','Deep','Nostalgic','Playful'];
 
 /* ===================== SUPABASE (real backend) ===================== */
-/* Paste your project's values below — Supabase Dashboard → Project Settings → API.
-   The anon/public key is SAFE to expose here: it only ever does what your
-   Row Level Security policies (see schema.sql) allow it to do. */
 const SUPABASE_URL = 'https://ybpvfftpfzrhcnmatjim.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlicHZmZnRwZnpyaGNubWF0amltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTgxNjYsImV4cCI6MjEwNjE5NDE2Nn0.CJowEW_xCz1HBE60aKKJrZeYlG-BK_KlqNxzcdiQEWI';
 let sb;
@@ -297,10 +300,10 @@ function giftToRow(g){
 let state = { view:'landing', giftId:null, menuOpen:false, editorStep:0 };
 const STEPS = ['Who Is This For','Shared Memories','Photos','Soundtrack','Customize','Preview','Publish'];
 
-let session = null;      // Supabase auth session — set at boot + onAuthStateChange
-let giftsCache = [];     // this user's gifts, loaded async for the dashboard
+let session = null;
+let giftsCache = [];
 let giftsLoading = false;
-let currentGift = null;  // the gift open in the editor, loaded async by id
+let currentGift = null;
 let giftLoading = false;
 
 function currentUser(){
@@ -680,7 +683,7 @@ function updateLittle(key,val){ if(!currentGift) return; currentGift.little[key]
 function rerenderKeepScroll(){ const y=document.querySelector('.editor-left')?.scrollTop||0; render(); const el=document.querySelector('.editor-left'); if(el) el.scrollTop=y; }
 function syncPhoneOnly(g){ const p=document.querySelector('.editor-right'); if(p) p.innerHTML=phonePreview(g); }
 
-/* Photo handling — files upload straight to Supabase Storage + a gift_photos row */
+/* Photo handling */
 async function handleFiles(files){
   if(!currentGift) return;
   const errEl = document.getElementById('photoerr');
@@ -743,9 +746,7 @@ async function removeUploadedSong(){
   rerenderKeepScroll();
 }
 
-/* Drag/drop wiring done in wireEvents */
-
-/* AI Assistant (local, template-based fallback — clearly not calling an external model) */
+/* AI Assistant (local, template-based) */
 let aiState={field:null,rel:null,feel:null};
 function openAI(field){
   aiState={field,rel:null,feel:null};
@@ -842,7 +843,7 @@ function runRecipientExperience(g, root, opts){
   const scenes = buildScenes(g);
   let sceneIdx = -1;
 
-  /* Persistent background audio — lives outside `root` so scene transitions never restart it */
+  /* Persistent background audio */
   if(g.musicFile){
     let audioEl = document.getElementById('giftAudio');
     if(!audioEl){ audioEl=document.createElement('audio'); audioEl.id='giftAudio'; audioEl.loop=true; audioEl.src=g.musicFile; audioEl.style.display='none'; document.body.appendChild(audioEl); }
@@ -856,7 +857,7 @@ function runRecipientExperience(g, root, opts){
     audioEl.play().then(()=>{ctrl.textContent='🔊 Pause music';}).catch(()=>{ctrl.textContent='🔈 Tap for sound';});
   }
 
-  /* Ambient sparkles drifting upward — pure atmosphere, doesn't block taps */
+  /* Ambient sparkles */
   if(window.__sparkleInterval) clearInterval(window.__sparkleInterval);
   window.__sparkleInterval = setInterval(()=>{
     const r=document.getElementById('recipient'); if(!r) return;
@@ -869,6 +870,11 @@ function runRecipientExperience(g, root, opts){
 
   let activeLayer='a';
   const openerText=(g.occasion&&g.occasion!=='birthday')?OCCASIONS[g.occasion].greet.toUpperCase():th.opener;
+  function updateScrollBtn(){
+    const w=document.getElementById('rContentWrap'), b=document.getElementById('scrollBtn');
+    if(!w||!b) return;
+    b.classList.toggle('show', w.scrollHeight - w.scrollTop - w.clientHeight > 24);
+  }
   function ensureShellDom(){
     if(root.dataset.built) return;
     root.dataset.built='1';
@@ -881,8 +887,13 @@ function runRecipientExperience(g, root, opts){
       <div class="rlayer rvignette"></div>
       ${publicMode?'':`<button class="exitr" onclick="closeRecipient()">✕ Close preview</button>`}
       <div class="rcontent" id="rContentWrap"></div>
+      <button class="scrollbtn" id="scrollBtn" aria-label="Scroll down">↓</button>
       <div class="rfooter">Made with ❤️ by Tushar Goyal</div>
     `;
+    const wrap=document.getElementById('rContentWrap');
+    wrap.addEventListener('scroll', updateScrollBtn, {passive:true});
+    document.getElementById('scrollBtn').onclick=()=>wrap.scrollBy({top:wrap.clientHeight*0.7, behavior:'smooth'});
+    window.addEventListener('resize', updateScrollBtn);
   }
   function setBackground(){
     const p = photos[idx % photos.length];
@@ -898,9 +909,12 @@ function runRecipientExperience(g, root, opts){
   }
   function setContent(html){
     const wrap = document.getElementById('rContentWrap');
-    if(!wrap.innerHTML.trim()){ wrap.innerHTML=html; return; }
+    if(!wrap.innerHTML.trim()){ wrap.innerHTML=html; setTimeout(updateScrollBtn,60); setTimeout(updateScrollBtn,500); return; }
     wrap.classList.add('rout');
-    setTimeout(()=>{ wrap.innerHTML=html; wrap.classList.remove('rout'); }, 320);
+    setTimeout(()=>{
+      wrap.innerHTML=html; wrap.scrollTop=0; wrap.classList.remove('rout');
+      updateScrollBtn(); setTimeout(updateScrollBtn,500);
+    }, 320);
   }
   function shell(inner){ ensureShellDom(); setBackground(); setContent(inner); }
 
@@ -1005,7 +1019,7 @@ function burstParticles(root, color, big){
   }
 }
 
-/* ---------- AUTH ACTIONS (real Supabase) ---------- */
+/* ---------- AUTH ACTIONS ---------- */
 async function doLogin(email,pw){
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
   if(error) return error.message;
@@ -1124,7 +1138,7 @@ function playPandaIntro(lines,onDone){
   })();
 }
 async function boot(){
-  if(!sb) return; // configuration error already shown by showBootError()
+  if(!sb) return;
   try{
     const isPublic = await checkPublicLink();
     if(isPublic) return;
