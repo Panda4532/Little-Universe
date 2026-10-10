@@ -273,6 +273,7 @@ function emptyGift(){
   return {id:null,ownerId:null,name:'',dob:'',unknownYear:false,occasion:'birthday',theme:'birthday',
     messages:{main:'',love:'',story:'',dreams:''},
     little:{nickname:'',joke:'',memory:'',habit:'',phrase:'',owe:''},
+    revealAt:'', revealTz:'', lockMessage:'',
     photos:[], music:'', musicFile:'', musicPath:'', bgIntensity:'balanced', published:false, views:0,
     createdAt:Date.now(), updatedAt:Date.now()};
 }
@@ -285,6 +286,7 @@ function rowToGift(row, photoRows){
     photos:(photoRows||[]).slice().sort((a,b)=>a.sort_order-b.sort_order).map(p=>({id:p.id,src:p.url,path:p.path||'',caption:p.caption||''})),
     music:row.music_url||'', musicFile:row.music_file_url||'', musicPath:row.music_path||'',
     bgIntensity:row.bg_intensity||'balanced', published:!!row.published, views:row.views||0,
+    revealAt:row.reveal_at||'', revealTz:row.reveal_tz||'', lockMessage:row.lock_message||'',
     createdAt:new Date(row.created_at).getTime(), updatedAt:new Date(row.updated_at).getTime()
   };
 }
@@ -292,7 +294,8 @@ function giftToRow(g){
   return {
     name:g.name, dob:g.dob||null, unknown_year:g.unknownYear, occasion:g.occasion, theme:g.theme,
     messages:g.messages, little:g.little, music_url:g.music, music_file_url:g.musicFile,
-    music_path:g.musicPath||null, bg_intensity:g.bgIntensity, published:g.published
+    music_path:g.musicPath||null, bg_intensity:g.bgIntensity, published:g.published,
+    reveal_at:g.revealAt||null, reveal_tz:g.revealTz||null, lock_message:g.lockMessage||null
   };
 }
 
@@ -326,6 +329,7 @@ async function fetchMyGifts(){
   const { data, error } = await sb.from('gifts').select('*, gift_photos(*)').eq('owner_id', u.id).order('updated_at', { ascending:false });
   giftsLoading=false;
   if(!error && data) giftsCache = data.map(row => rowToGift(row, row.gift_photos));
+  await loadReplyCounts();
   render();
 }
 async function loadGift(id){
@@ -489,6 +493,7 @@ function giftCard(g){
         <button onclick="nav('editor',{giftId:'${g.id}',editorStep:0})">Edit</button>
         <button onclick="openRecipient('${g.id}')">Preview</button>
         <button onclick="shareGift('${g.id}')">Share</button>
+        <button onclick="openReplies('${g.id}')">💌 Replies${replyUnread[g.id]?' ('+replyUnread[g.id]+' new)':''}</button>
         <button onclick="duplicateGift('${g.id}')">Duplicate</button>
         <button onclick="deleteGift('${g.id}')" style="color:#ff8fa3">Delete</button>
       </div>
@@ -658,6 +663,7 @@ function editorStepBody(g, step){
   if(step===6) return stepNav+`
     <h1 class="stephead">Publish & <span class="serif-i">share</span></h1>
     <p class="muted">${g.published? `Your little universe is live. Send it to ${g.name}.` : `Publishing generates a link only ${g.name||'they'} needs, no account required.`}</p>
+    ${revealPanel(g)}
     <button class="btn btn-primary" onclick="publishAndShare()">${g.published?'Manage Link':'Publish Gift'}</button>
     ${g.published?`<button class="btn btn-ghost" style="margin-left:10px" onclick="updateField('published',false)">Unpublish</button>`:''}
     ${nav_}`;
@@ -746,44 +752,84 @@ async function removeUploadedSong(){
   rerenderKeepScroll();
 }
 
-/* AI Assistant (local, template-based) */
-let aiState={field:null,rel:null,feel:null};
+/* AI Writing Assistant — calls the `ai-write` Supabase Edge Function (API key stays server-side) */
+const TONES = ['Heartfelt','Emotional','Funny','Playful','Poetic','Friendship','Romantic'];
+const LENS = [['short','Short (social post)'],['medium','Medium'],['long','Long']];
+const LANGS = ['English','Hindi','Hinglish','Spanish','French'];
+let aiState = {};
 function openAI(field){
-  aiState={field,rel:null,feel:null};
+  aiState = {field, rel:null, tone:'Heartfelt', len:'medium', lang:'English', mem:'', traits:'', feel:'', result:'', loading:false, error:''};
   showModal(aiModalBody());
 }
-function aiModalBody(){
-  return `<h3>✨ Write it with me</h3><p class="muted">A local writing assistant — no external AI is called in this demo.</p>
-  <div class="label">Who are they to you?</div>
-  <div class="chiprow">${REL.map(r=>`<div class="chip ${aiState.rel===r?'sel':''}" onclick="aiState.rel='${r}';showModal(aiModalBody())">${r}</div>`).join('')}</div>
-  <div class="label">What feeling should it have?</div>
-  <div class="chiprow">${FEEL.map(r=>`<div class="chip ${aiState.feel===r?'sel':''}" onclick="aiState.feel='${r}';showModal(aiModalBody())">${r}</div>`).join('')}</div>
-  <div class="label">Tell us a little about them...</div>
-  <textarea id="aiDetails" placeholder="A memory, a trait, an inside joke..."></textarea>
-  <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="generateAIMessage()">Generate Message</button>`;
+function aiSet(k,v){ aiState[k]=v; showModal(aiModalBody()); }
+function aiChips(list, key, cur){
+  return `<div class="chiprow">${list.map(x=>{ const v=Array.isArray(x)?x[0]:x, l=Array.isArray(x)?x[1]:x; return `<div class="chip ${cur===v?'sel':''}" onclick="aiSet('${key}','${v}')">${l}</div>`; }).join('')}</div>`;
 }
-function generateAIMessage(){
-  const details = document.getElementById('aiDetails').value.trim();
+function aiModalBody(){
+  const a = aiState;
+  if(a.loading) return `<h3>✨ Writing…</h3><p class="muted">Putting your details into words. This takes a few seconds.</p>`;
+  if(a.result) return `<h3>✨ Your draft</h3><p class="muted">Edit anything you like. Nothing is saved until you press “Use this message”.</p>
+    <textarea style="min-height:180px;margin-top:10px" oninput="aiState.result=this.value">${esc(a.result)}</textarea>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+      <button class="btn btn-primary" onclick="useAIResult()">Use this message</button>
+      <button class="btn btn-ghost" onclick="runAI()">↻ Regenerate</button>
+      <button class="btn btn-ghost" onclick="aiState.result='';showModal(aiModalBody())">← Edit details</button>
+    </div>`;
+  return `<h3>✨ Write it with me</h3><p class="muted">Tell me about them and I'll draft it. Only the first name and what you type below are sent.</p>
+  <div class="label">Who are they to you?</div>${aiChips(REL,'rel',a.rel)}
+  <div class="label">Tone</div>${aiChips(TONES,'tone',a.tone)}
+  <div class="label">Length</div>${aiChips(LENS,'len',a.len)}
+  <div class="label">Language</div>${aiChips(LANGS,'lang',a.lang)}
+  <div class="label">A memory or meaningful experience</div>
+  <textarea maxlength="800" style="min-height:70px" oninput="aiState.mem=this.value" placeholder="The night we missed the last train…">${esc(a.mem)}</textarea>
+  <div class="label">Their personality and inside jokes</div>
+  <textarea maxlength="600" style="min-height:70px" oninput="aiState.traits=this.value" placeholder="Always late, laughs at everything, 'bas bhai'…">${esc(a.traits)}</textarea>
+  <div class="label">What do you want them to feel or know?</div>
+  <textarea maxlength="600" style="min-height:70px" oninput="aiState.feel=this.value" placeholder="That they're not alone, that I'm proud of them…">${esc(a.feel)}</textarea>
+  ${a.error?`<div class="err" style="margin-top:10px">${esc(a.error)}</div><button class="btn btn-ghost" style="margin-top:10px" onclick="quickTemplate()">Use a simple template instead</button>`:''}
+  <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="runAI()">Generate message</button>`;
+}
+async function runAI(){
   const g = currentGift; if(!g) return;
-  const name = g.name || 'you';
-  const rel = aiState.rel || 'someone special';
-  const feel = aiState.feel || 'Emotional';
-  const bank = {
-    Emotional: `${name}, some people come into your life quietly and somehow become the loudest, warmest part of it. That's you. ${details? details+'. ' : ''}Today I just want you to know how much you mean, as my ${rel.toLowerCase()}.`,
-    Funny: `${name}, I was going to write something deep, but honestly you're too chaotic for that. ${details? details+'. ' : ''}Happy birthday to the ${rel.toLowerCase()} who makes even ordinary days ridiculous — in the best way.`,
-    Romantic: `${name}, every version of "us" I imagine starts with you. ${details? details+'. ' : ''}Happy birthday to my favorite person, my ${rel.toLowerCase()}, my always.`,
-    Deep: `${name}, time moves strangely with people who matter — some days feel like years, some years feel like a breath. ${details? details+'. ' : ''}I'm grateful the timeline gave me you.`,
-    Nostalgic: `${name}, I keep thinking about everything we've already lived through together. ${details? details+'. ' : ''}Happy birthday — here's to remembering, and to everything still ahead.`,
-    Playful: `${name}!! It's your day! ${details? details+'. ' : ''}As your ${rel.toLowerCase()}, I hereby declare today officially yours. Go be extra about it.`
-  };
-  const text = bank[feel] || bank.Emotional;
-  const field = aiState.field;
+  if(!(aiState.mem||'').trim() && !(aiState.traits||'').trim() && !(aiState.feel||'').trim()){
+    aiState.result=''; aiState.error='Add at least one detail (a memory, a trait, or what you want them to feel) so it sounds like you.';
+    showModal(aiModalBody()); return;
+  }
+  aiState.loading = true; aiState.error = ''; showModal(aiModalBody());
+  try{
+    const { data, error } = await sb.functions.invoke('ai-write', { body:{
+      field:aiState.field,
+      name:((g.name||'').trim().split(/\s+/)[0])||'',
+      relationship:aiState.rel||'',
+      occasion:(OCCASIONS[g.occasion||'birthday']||{}).label||'Birthday',
+      tone:aiState.tone, language:aiState.lang, length:aiState.len,
+      memories:aiState.mem, traits:aiState.traits, feelings:aiState.feel } });
+    if(error){
+      let m = 'The writing service is unavailable right now.';
+      try{ const j = await error.context.json(); if(j && j.error) m = j.error; }catch(_){}
+      throw new Error(m);
+    }
+    if(!data || !data.message) throw new Error('The service returned an empty message. Please try again.');
+    aiState.result = data.message;
+  }catch(e){ aiState.result=''; aiState.error = e.message || 'Something went wrong.'; }
+  aiState.loading = false; showModal(aiModalBody());
+}
+function quickTemplate(){
+  const g = currentGift || {}; const n = (g.name||'').trim() || 'you';
+  const rel = (aiState.rel||'someone special').toLowerCase();
+  const bits = [aiState.mem,aiState.traits,aiState.feel].map(x=>(x||'').trim()).filter(Boolean).join(' ');
+  aiState.result = `${n}, you're my ${rel} and I'm so grateful for you. ${bits?bits+' ':''}Happy birthday — I hope today feels as special as you make everyone else feel.`;
+  aiState.error = ''; showModal(aiModalBody());
+}
+function useAIResult(){
+  const g = currentGift; const field = aiState.field; const text = (aiState.result||'').trim();
+  if(!g || !text) return;
   const apply = ()=>{ g.messages[field]=text; queueSave(g); closeModal(); rerenderKeepScroll(); };
   if(g.messages[field] && g.messages[field].trim().length){
     window.__pendingAIApply = apply;
-    showModal(`<h3>Replace existing text?</h3><p class="muted">This will overwrite what's already written in this field.</p>
+    showModal(`<h3>Replace existing text?</h3><p class="muted">This field already has writing in it. Replacing it can't be undone.</p>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
-        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-ghost" onclick="showModal(aiModalBody())">Cancel</button>
         <button class="btn btn-primary" onclick="window.__pendingAIApply()">Replace</button>
       </div>`);
   } else { apply(); }
@@ -837,6 +883,7 @@ function closeRecipient(){
 function runRecipientExperience(g, root, opts){
   opts = opts||{};
   const publicMode = !!opts.publicMode;
+  window.__replyCtx = { id: g.id, publicMode };
   const th = THEMES[g.theme];
   const photos = g.photos.length? g.photos : [{src:''}];
   let idx=0, opened=false;
@@ -944,7 +991,7 @@ function runRecipientExperience(g, root, opts){
     idx = sceneIdx;
     const s = scenes[sceneIdx];
     const isFinal = sceneIdx===scenes.length-1;
-    if(isFinal) setTimeout(()=>burstParticles(root, th.c1, true), 350);
+    if((isFinal && !s.quiet) || s.celebrate) setTimeout(()=>burstParticles(root, th.c1, true), 350);
     shell(`
       ${s.eyebrow?`<div class="muted" style="letter-spacing:.2em;font-size:12px">${s.emoji?s.emoji+' ':''}${s.eyebrow}</div>`:''}
       <h1 style="${s.small?'font-size:clamp(20px,4.5vw,30px)':''}">${s.title||''}</h1>
@@ -1002,8 +1049,9 @@ function buildScenes(g){
   while(liPtr<littleItems.length) pushLittle(scenes);
   if(g.music) scenes.push({eyebrow:'A SONG FOR YOU', emoji:'🎧', text:'This one made me think of you.', extra:`<a class="btn btn-primary" style="text-decoration:none;display:inline-block;margin-top:10px" href="${g.music}" target="_blank">▶ Open Soundtrack</a>`});
   scenes.push({title:"You're almost there...", small:true, emoji:'🕯️'});
-  scenes.push({eyebrow:'ONE LAST THING', emoji:'❤️', title:`${OCC.greet}, ${name}. ❤️`,
+  scenes.push({eyebrow:'ONE LAST THING', emoji:'❤️', celebrate:true, title:`${OCC.greet}, ${name}. ❤️`,
     extra: g.photos.length? `<img src="${g.photos[g.photos.length-1].src}" onclick="window.__openPhoto('${g.photos[g.photos.length-1].src}')" style="max-width:220px;border-radius:14px;margin-top:16px;box-shadow:0 20px 50px rgba(0,0,0,.5);cursor:pointer">` : ''});
+  scenes.push(replyScene(g));
   return scenes;
 }
 function burstParticles(root, color, big){
@@ -1077,19 +1125,241 @@ function wireEvents(){
   }
 }
 
+/* ===================== SCHEDULED REVEAL ===================== */
+/* Time zones: the creator picks a zone (default = their browser's). The wall-clock time is converted to an exact
+   UTC instant and stored as timestamptz. The SERVER decides locked/unlocked (get_public_gift), never the browser. */
+function tzOffsetMs(utcMs, tz){
+  const f = new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const p = {}; f.formatToParts(new Date(utcMs)).forEach(x=>p[x.type]=x.value);
+  return Date.UTC(+p.year, +p.month-1, +p.day, +p.hour, +p.minute, +p.second) - utcMs;
+}
+function zonedToUtcMs(local, tz){
+  const m = String(local).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if(!m) return NaN;
+  try{
+    const asUtc = Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]);
+    let t = asUtc - tzOffsetMs(asUtc, tz);
+    t = asUtc - tzOffsetMs(t, tz);
+    return t;
+  }catch(e){ return NaN; }
+}
+function utcToZonedLocal(iso, tz){
+  const d = new Date(iso); if(isNaN(d)) return '';
+  try{
+    const f = new Intl.DateTimeFormat('en-CA',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const p = {}; f.formatToParts(d).forEach(x=>p[x.type]=x.value);
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+  }catch(e){ return ''; }
+}
+function revealPanel(g){
+  const browserTz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC';
+  const tz = g.revealTz || browserTz;
+  let zones; try{ zones = Intl.supportedValuesOf('timeZone'); }catch(e){ zones = ['UTC','Asia/Kolkata','America/New_York','Europe/London','Asia/Dubai','Australia/Sydney']; }
+  if(!zones.includes(tz)) zones = [tz].concat(zones);
+  const local = g.revealAt ? utcToZonedLocal(g.revealAt, tz) : '';
+  const ms = g.revealAt ? Date.parse(g.revealAt) : NaN;
+  let note = '';
+  if(g.revealAt && !isNaN(ms)){
+    note = ms <= Date.now()
+      ? `<div class="err">That time has already passed, so the gift will open immediately.</div>`
+      : `<div class="muted" style="font-size:12px;margin-top:8px">Opens ${esc(new Date(ms).toLocaleString([], {dateStyle:'full',timeStyle:'short'}))} in your browser's time zone (${esc(browserTz)}). Stored on the server as an exact UTC moment.</div>`;
+    if(!g.published) note += `<div class="muted" style="font-size:12px;margin-top:6px">The lock starts working once the gift is published.</div>`;
+  }
+  return `<div class="card" style="padding:20px;margin:22px 0">
+    <div class="label" style="margin-top:0">⏳ Scheduled reveal (optional)</div>
+    <p class="muted" style="font-size:13px;margin:0 0 12px">Keep the gift locked until a date and time you choose. It opens by itself, with no need to republish. Leave empty to open right away. You can always preview the full gift yourself.</p>
+    <input type="datetime-local" id="rv_at" value="${local}" onchange="setReveal()">
+    <div class="label">Time zone for this reveal</div>
+    <select id="rv_tz" onchange="setReveal()">${zones.map(z=>`<option value="${esc(z)}" ${z===tz?'selected':''}>${esc(z)}</option>`).join('')}</select>
+    <div class="label">Message shown while locked</div>
+    <textarea id="rv_msg" maxlength="200" oninput="setLockMsg(this.value)" placeholder="Something special is waiting for you…">${esc(g.lockMessage)}</textarea>
+    ${note}
+    ${g.revealAt?`<button class="btn btn-ghost" style="margin-top:12px" onclick="clearReveal()">Remove schedule</button>`:''}
+  </div>`;
+}
+function setReveal(){
+  if(!currentGift) return;
+  const v = document.getElementById('rv_at').value, tz = document.getElementById('rv_tz').value;
+  if(!v){ currentGift.revealAt = ''; currentGift.revealTz = tz; }
+  else{
+    const ms = zonedToUtcMs(v, tz);
+    if(isNaN(ms)){ alert('That date or time is not valid.'); return; }
+    currentGift.revealAt = new Date(ms).toISOString(); currentGift.revealTz = tz;
+  }
+  queueSave(currentGift); rerenderKeepScroll();
+}
+function setLockMsg(v){ if(!currentGift) return; currentGift.lockMessage = v; queueSave(currentGift); }
+function clearReveal(){ if(!currentGift) return; currentGift.revealAt = ''; queueSave(currentGift); rerenderKeepScroll(); }
+
+function showLockedScreen(pg, id){
+  const th = THEMES[pg.theme] || THEMES.birthday;
+  const target = Date.parse(pg.reveal_at), skew = Date.parse(pg.server_now) - Date.now(); // trust the server clock, not the device's
+  let when = '', tzLine = '';
+  try{ when = new Date(target).toLocaleString([], {dateStyle:'full',timeStyle:'short'}); }catch(e){}
+  try{ if(pg.reveal_tz) tzLine = new Date(target).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short',timeZone:pg.reveal_tz}) + ' (' + pg.reveal_tz + ')'; }catch(e){}
+  const cell = (cid,l)=>`<div style="min-width:70px"><div id="${cid}" style="font-family:var(--serif);font-size:44px;line-height:1">00</div><div class="muted" style="font-size:11px;letter-spacing:.12em;margin-top:6px">${l}</div></div>`;
+  document.body.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:radial-gradient(600px 400px at 50% 30%,${th.c1}33,transparent 65%),${th.bg};color:#F2EFEF;font-family:var(--sans)">
+    <div style="max-width:520px">
+      <div style="font-size:44px">🔒</div>
+      <div class="muted" style="letter-spacing:.2em;font-size:12px;margin-top:10px">A GIFT FOR</div>
+      <h1 class="serif" style="font-size:clamp(32px,8vw,52px);margin:6px 0 14px">${esc(pg.name||'you')}</h1>
+      <p style="color:#e8e4ea;line-height:1.6">${esc(pg.lock_message||'Something special is waiting for you. It opens soon…')}</p>
+      <div style="display:flex;gap:14px;justify-content:center;margin:30px 0 10px;flex-wrap:wrap">${cell('cdD','DAYS')}${cell('cdH','HOURS')}${cell('cdM','MINUTES')}${cell('cdS','SECONDS')}</div>
+      <div class="muted" style="font-size:12px;line-height:1.7">Opens ${esc(when)} (your local time)${tzLine?'<br>'+esc(tzLine):''}</div>
+      <div id="cdNote" class="muted" style="font-size:12px;margin-top:10px"></div>
+    </div></div>`;
+  const pad = n => String(n).padStart(2,'0');
+  let retrying = false, timer = null;
+  const tick = ()=>{
+    const left = Math.max(0, target - (Date.now() + skew));   // never negative
+    const sec = Math.floor(left/1000);
+    const set = (k,v)=>{ const e = document.getElementById(k); if(e) e.textContent = v; };
+    set('cdD', pad(Math.floor(sec/86400))); set('cdH', pad(Math.floor(sec%86400/3600)));
+    set('cdM', pad(Math.floor(sec%3600/60))); set('cdS', pad(sec%60));
+    if(left <= 0 && !retrying){
+      retrying = true; clearInterval(timer);
+      const n = document.getElementById('cdNote'); if(n) n.textContent = 'Opening your gift…';
+      setTimeout(()=>{ checkPublicLink().catch(()=>{}); }, 1500);   // asks the server again; it only unlocks if the time really passed
+    }
+  };
+  timer = setInterval(tick, 1000); tick();
+}
+
+/* ===================== RECIPIENT REPLIES ===================== */
+const REACTIONS = ['❤️','🥹','🫶','🎉','💌'];
+let __reaction = '';
+function replyToken(){
+  try{ let t = localStorage.getItem('lu_rt'); if(!t){ t = uid()+uid(); localStorage.setItem('lu_rt', t); } return t; }
+  catch(e){ return uid()+uid(); }
+}
+function replyScene(g){
+  let sent = false; try{ sent = !!localStorage.getItem('lu_replied_'+g.id); }catch(e){}
+  const done = `<div class="card-float" style="margin:0 auto"><div style="font-size:30px">💌</div><div style="margin-top:8px;max-width:280px">Your reply is on its way. Thank you for making someone's day.</div></div>`;
+  const form = `<div id="replyBox" style="width:100%;max-width:420px">
+    <div class="chiprow" style="justify-content:center">${REACTIONS.map(e=>`<div class="chip" data-r="${e}" onclick="window.__pickReaction(this)" style="font-size:22px;cursor:pointer">${e}</div>`).join('')}</div>
+    <textarea id="replyText" maxlength="1000" placeholder="Write your reply…" style="min-height:110px;text-align:left"></textarea>
+    <div id="replyErr" class="err"></div>
+    <button class="btn btn-primary" id="replyBtn" onclick="window.__sendReply()" style="margin-top:10px">Send reply 💌</button>
+  </div>`;
+  return {eyebrow:'YOUR TURN', emoji:'💌', title:'Your turn to make me smile 💌', quiet:true, extra: sent ? done : form};
+}
+window.__pickReaction = (el)=>{
+  const was = el.classList.contains('sel');
+  document.querySelectorAll('#replyBox .chip').forEach(c=>c.classList.remove('sel'));
+  __reaction = '';
+  if(!was){ el.classList.add('sel'); __reaction = el.dataset.r; }
+};
+window.__sendReply = async ()=>{
+  const ctx = window.__replyCtx || {};
+  const t = document.getElementById('replyText'), err = document.getElementById('replyErr'), btn = document.getElementById('replyBtn');
+  if(!t || !err || !btn || window.__replySending) return;
+  const msg = (t.value||'').trim();
+  err.textContent = '';
+  if(!msg && !__reaction){ err.textContent = 'Write a message or pick a reaction first.'; return; }
+  if(!ctx.publicMode){ err.textContent = 'Preview only: replies are saved when someone opens the real link.'; return; }
+  window.__replySending = true; btn.disabled = true; btn.textContent = 'Sending…';
+  try{
+    const { error } = await sb.rpc('submit_gift_reply', { p_gift_id: ctx.id, p_message: msg, p_reaction: __reaction || null, p_token: replyToken() });
+    if(error) throw error;
+    try{ localStorage.setItem('lu_replied_'+ctx.id, '1'); }catch(e){}
+    const box = document.getElementById('replyBox');
+    if(box) box.innerHTML = `<div class="card-float" style="margin:0 auto"><div style="font-size:30px">💌</div><div style="margin-top:8px">Your reply is on its way. Thank you for making someone's day.</div></div>`;
+  }catch(e){
+    const m = String(e && e.message || '');
+    err.textContent = /REPLY_RATE/.test(m) ? 'Lots of replies just came in. Please try again in a little while.'
+      : /REPLY_DUP/.test(m) ? 'It looks like that reply was already sent.'
+      : /REPLY_LOCKED/.test(m) ? "This gift isn't open yet."
+      : /REPLY_INVALID/.test(m) ? 'Please check your message and try again.'
+      : "Couldn't send your reply. Please check your connection and try again.";
+    btn.disabled = false; btn.textContent = 'Send reply 💌';
+  }
+  window.__replySending = false;
+};
+
+/* ---------- Creator: replies inbox ---------- */
+let replyUnread = {};
+let repliesView = { gid:null, items:[], loading:false, err:'' };
+async function loadReplyCounts(){
+  try{
+    const { data } = await sb.from('gift_replies').select('gift_id').eq('is_read', false);
+    replyUnread = {}; (data||[]).forEach(r=>{ replyUnread[r.gift_id] = (replyUnread[r.gift_id]||0) + 1; });
+  }catch(e){}
+}
+async function openReplies(gid){
+  repliesView = { gid, items:[], loading:true, err:'' }; showModal(repliesBody());
+  const { data, error } = await sb.from('gift_replies').select('*').eq('gift_id', gid).order('created_at', { ascending:false });
+  repliesView.loading = false;
+  if(error) repliesView.err = error.message; else repliesView.items = data || [];
+  showModal(repliesBody());
+}
+function repliesBody(){
+  const v = repliesView, g = giftsCache.find(x=>x.id===v.gid);
+  const unread = v.items.filter(r=>!r.is_read).length;
+  let inner;
+  if(v.loading) inner = `<p class="muted">Loading replies…</p>`;
+  else if(v.err) inner = `<p class="err">${esc(v.err)}</p>`;
+  else if(!v.items.length) inner = `<div style="text-align:center;padding:24px 0"><div style="font-size:34px">💌</div><p class="muted">No replies yet. When ${esc((g&&g.name)||'they')} writes back, it will show up here.</p></div>`;
+  else inner = v.items.map(r=>`<div class="card" style="padding:14px;margin:10px 0;${r.is_read?'opacity:.7':'border-color:var(--accent)'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <span style="font-size:22px">${esc(r.reaction||'')}</span>
+        <span class="muted" style="font-size:11px">${esc(new Date(r.created_at).toLocaleString())}${r.is_read?'':' · New'}</span>
+      </div>
+      ${r.message?`<p style="white-space:pre-line;margin:8px 0 0;line-height:1.5">${esc(r.message)}</p>`:''}
+      <div class="giftactions">
+        ${r.is_read?'':`<button onclick="markReply('${r.id}')">Mark read</button>`}
+        <button onclick="askDeleteReply('${r.id}')" style="color:#ff8fa3">Delete</button>
+      </div></div>`).join('');
+  return `<h3>💌 Replies${g?' from '+esc(g.name||'them'):''}</h3>
+    ${unread?`<button class="btn btn-ghost" style="margin:8px 0" onclick="markAllReplies()">Mark all as read</button>`:''}
+    ${inner}
+    <div style="text-align:right;margin-top:14px"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>`;
+}
+async function markReply(id){
+  const { error } = await sb.from('gift_replies').update({ is_read:true }).eq('id', id);
+  if(error){ alert('Could not update: '+error.message); return; }
+  const r = repliesView.items.find(x=>x.id===id); if(r) r.is_read = true;
+  showModal(repliesBody()); loadReplyCounts().then(render);
+}
+async function markAllReplies(){
+  const { error } = await sb.from('gift_replies').update({ is_read:true }).eq('gift_id', repliesView.gid).eq('is_read', false);
+  if(error){ alert('Could not update: '+error.message); return; }
+  repliesView.items.forEach(r=>r.is_read = true);
+  showModal(repliesBody()); loadReplyCounts().then(render);
+}
+function askDeleteReply(id){
+  showModal(`<h3>Delete this reply permanently?</h3><p class="muted">This can't be undone.</p>
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="showModal(repliesBody())">Cancel</button>
+      <button class="btn btn-primary" style="background:#c0304f" onclick="confirmDeleteReply('${id}')">Delete forever</button>
+    </div>`);
+}
+async function confirmDeleteReply(id){
+  const { error } = await sb.from('gift_replies').delete().eq('id', id);
+  if(error){ alert('Could not delete: '+error.message); return; }
+  repliesView.items = repliesView.items.filter(x=>x.id!==id);
+  showModal(repliesBody()); loadReplyCounts().then(render);
+}
+
 /* ---------- INIT ---------- */
 async function checkPublicLink(){
   const m = location.hash.match(/^#gift=(.+)$/);
   if(!m) return false;
   const id = m[1];
   document.body.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:#0B0B10;color:#F2EFEF;font-family:'Inter',sans-serif"><p style="color:#9b96a3">Preparing something special…</p></div>`;
-  const { data, error } = await sb.from('gifts').select('*, gift_photos(*)').eq('id', id).eq('published', true).maybeSingle();
+  let pg = null, error = null;
+  try{ const r = await sb.rpc('get_public_gift', { p_id: id }); pg = r.data; error = r.error; }catch(e){ error = e; }
+  if(error && /fetch|network|failed/i.test(error.message||'')){
+    document.body.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:#0B0B10;color:#F2EFEF;font-family:'Inter',sans-serif"><div><h2 style="font-family:'Cormorant Garamond',serif;font-size:28px">Couldn't reach the server.</h2><p style="color:#9b96a3">Check your connection and try again.</p><button class="btn btn-primary" onclick="location.reload()">Try again</button></div></div>`;
+    return true;
+  }
+  if(pg && pg.locked){ showLockedScreen(pg, id); return true; }
+  const data = (pg && !pg.locked) ? pg.gift : null;
   if(error || !data){
     document.body.innerHTML = `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:#0B0B10;color:#F2EFEF;font-family:'Inter',sans-serif"><div><h2 style="font-family:'Cormorant Garamond',serif;font-size:28px">This gift isn't available.</h2><p style="color:#9b96a3">It may still be a draft, or the link may be incorrect.</p></div></div>`;
     return true;
   }
-  const g = rowToGift(data, data.gift_photos);
-  sb.rpc('increment_gift_views', { gift_id: id });
+  const g = rowToGift(data, pg.photos);
+  if(!pg.is_owner) sb.rpc('increment_gift_views', { gift_id: id });
   document.body.innerHTML = '';
   const el=document.createElement('div'); el.id='recipient'; document.body.appendChild(el);
   runRecipientExperience(g, el, {publicMode:true});
